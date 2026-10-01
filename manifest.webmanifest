@@ -1,0 +1,1 @@
+{"name":"Entreno","short_name":"Entreno","description":"Registro de entrenamiento personal","start_url":"/entreno/","display":"standalone","background_color":"#0f1115","theme_color":"#0f1115","lang":"es","scope":"/entreno/","icons":[{"src":"favicon.svg","sizes":"any","type":"image/svg+xml","purpose":"any"}]}
