@@ -76,3 +76,5 @@ select.bad { border-color: var(--bad); }
 .restbar .skip { margin-left: 8px; }
 .tabs { height: calc(52px + env(safe-area-inset-bottom)); }
 main { padding-bottom: 150px; }
+button.next { width: 100%; margin: 4px 0 12px; padding: 16px; font-weight: 700; }
+.center-text { text-align: center; margin: 0 0 12px; }

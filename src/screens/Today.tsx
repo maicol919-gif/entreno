@@ -91,6 +91,9 @@ export default function Today() {
 
   if (openItem && session) {
     const ex = exById.get(openItem.exercise_id)!
+    const idx = dayItems.findIndex((i) => i.id === openItem.id)
+    const nextItem = idx >= 0 ? dayItems[idx + 1] ?? null : null
+    const nextEx = nextItem ? exById.get(nextItem.exercise_id) : null
     return (
       <ExerciseView
         key={openItem.id}
@@ -99,6 +102,11 @@ export default function Today() {
         rx={rxFor(openItem, ex)}
         restSeconds={settings.rest_seconds}
         onBack={() => setOpenItem(null)}
+        nextName={nextEx?.name ?? null}
+        onNext={() => {
+          window.scrollTo({ top: 0 })
+          setOpenItem(nextItem)
+        }}
       />
     )
   }

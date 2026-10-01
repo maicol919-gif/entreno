@@ -23,9 +23,12 @@ interface Props {
   rx: Prescription
   restSeconds: number
   onBack: () => void
+  /** nombre del siguiente ejercicio del día (null si es el último) */
+  nextName: string | null
+  onNext: () => void
 }
 
-export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onBack }: Props) {
+export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onBack, nextName, onNext }: Props) {
   const [sets, setSets] = useState<SetRow[] | null>(null)
   const [past, setPast] = useState<PastSession[]>([])
   const [sugg, setSugg] = useState<Suggestion | null>(null)
@@ -159,6 +162,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   }
 
   const last = past[0]
+  const allDone = !!sets && sets.length > 0 && sets.every((r) => r.done)
 
   return (
     <div className="screen">
@@ -249,6 +253,14 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
           )}
         </div>
       </section>
+
+      <button
+        className={allDone ? 'primary next' : 'next'}
+        onClick={() => (nextName ? onNext() : onBack())}
+      >
+        {nextName ? `Siguiente: ${nextName} →` : 'Último ejercicio: volver a la sesión ✓'}
+      </button>
+      {!allDone && sets && sets.length > 0 && <p className="muted center-text">Aún tienes series sin marcar.</p>}
 
       <section className="card">
         <h3>Nota de hoy</h3>
