@@ -3,7 +3,6 @@ export type LoadType = 'total' | 'per_side' | 'per_hand' | 'plates_per_side_plus
 export interface Exercise {
   id: string
   name: string
-  maru_name: string | null
   muscle_primary: string
   muscles_secondary: string[]
   equipment: string | null

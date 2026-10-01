@@ -77,7 +77,7 @@ export interface CardioPlan {
 }
 
 /**
- * Cardio en cinta al final de la sesión de fuerza (protocolo propio de Maycol).
+ * Cardio en cinta al final de la sesión de fuerza (protocolo configurable de intervalos).
  * - Días 1, 3 y 5 (torso): intervalos (la regla de no repetir en días seguidos se valida con las fechas reales).
  * - Días 2 y 4 (pierna): caminata suave en cuesta, opcional.
  * - Semana de descarga: solo caminata suave.

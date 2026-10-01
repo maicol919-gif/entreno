@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { importMaru, type MaruFile } from '../lib/import'
 import { useData } from '../store'
 
 export default function SettingsTab() {
@@ -13,19 +12,6 @@ export default function SettingsTab() {
     const { error } = await supabase.from('settings').upsert({ mesocycle_start: settings.mesocycle_start, rest_seconds: Number(rest) || 120, week_offset: Math.round(Number(offset)) || 0 })
     setMsg(error ? error.message : 'Guardado.')
     await reload()
-  }
-
-  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const f = e.target.files?.[0]
-    if (!f) return
-    try {
-      const json = JSON.parse(await f.text()) as MaruFile
-      const r = await importMaru(json)
-      setMsg(`Importadas ${r.sessions} sesiones y ${r.sets} series.`)
-    } catch (err) {
-      setMsg(err instanceof Error ? err.message : String(err))
-    }
-    e.target.value = ''
   }
 
   async function exportAll() {
@@ -82,7 +68,6 @@ export default function SettingsTab() {
 
       <section className="card">
         <h3>Datos</h3>
-        <label>Importar historial de Maru (maru-historial.json)<input type="file" accept="application/json" onChange={onFile} /></label>
         <button onClick={exportAll}>Descargar respaldo</button>
       </section>
 

@@ -63,7 +63,7 @@ export const GUIDES: Record<string, Guide> = {
     errors: ['Balancear el tronco', 'Subir con el trapecio (hombros arriba)', 'Subir por encima del hombro con la muñeca más alta que el codo'],
   },
   'Elevación unilateral isométrica': {
-    setup: 'Elevación lateral de un brazo con pausa isométrica arriba. (Si la hacías de otra forma en Maru, mantén ese método y anota los detalles en la nota fija.)',
+    setup: 'Elevación lateral de un brazo con pausa isométrica arriba. Si la haces de otra forma, anota los detalles en la nota fija del ejercicio.',
     steps: ['Sube el brazo hacia el lado hasta la altura del hombro.', 'Mantén 1–2 s sin balancear.', 'Baja lento en 2 s.'],
     errors: ['Usar impulso', 'Subir el hombro', 'Soltar el peso rápido'],
   },
@@ -88,7 +88,7 @@ export const GUIDES: Record<string, Guide> = {
     errors: ['Rotar los hombros', 'Flexionar los codos', 'Mover la cabeza hacia delante'],
   },
   'Curl martillo': {
-    setup: 'De pie (como en Maru; sentado costaría ~5-10 % menos peso). Ambos brazos a la vez, mancuernas con agarre neutro (palmas enfrentadas). Codos pegados al cuerpo.',
+    setup: 'De pie (sentado costaría ~5-10 % menos peso). Ambos brazos a la vez, mancuernas con agarre neutro (palmas enfrentadas). Codos pegados al cuerpo.',
     steps: ['Sube las mancuernas sin mover los codos.', 'Aprieta arriba.', 'Baja en 2 s hasta extender.'],
     errors: ['Balancear el tronco', 'Adelantar los codos', 'Bajar de golpe'],
   },

@@ -1,5 +1,5 @@
 /**
- * Protocolo de cinta de Maycol (capacidad respiratoria), según el chat de cardio:
+ * Protocolo de cinta (capacidad respiratoria):
  * - Intervalos: 4 bloques rápidos de 2 min (9,5 / 9,5 / 10,0 / 10,0 km/h), inclinación 1 %, recuperación a 5,5 km/h.
  * - Calentamiento y enfriamiento a 0 %.
  * - Se cambia UNA sola variable por sesión. Siguiente paso: recuperación 45 s -> 30 s con las mismas velocidades.
