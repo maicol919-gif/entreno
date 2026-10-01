@@ -44,6 +44,17 @@ export default function SettingsTab() {
     await reload()
   }
 
+  async function forceUpdate() {
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(regs.map((r) => r.unregister()))
+      for (const k of await caches.keys()) await caches.delete(k)
+    } catch {
+      /* sin service worker: basta con recargar */
+    }
+    location.reload()
+  }
+
   const barEx = exercises.filter((e) => e.load_type === 'plates_per_side_plus_bar')
 
   return (
@@ -72,6 +83,12 @@ export default function SettingsTab() {
         <h3>Datos</h3>
         <label>Importar historial de Maru (maru-historial.json)<input type="file" accept="application/json" onChange={onFile} /></label>
         <button onClick={exportAll}>Descargar respaldo</button>
+      </section>
+
+      <section className="card">
+        <h3>Versión de la app</h3>
+        <p className="muted">Compilada: {__BUILD__}</p>
+        <button onClick={forceUpdate}>Buscar actualización</button>
       </section>
 
       <button className="link" onClick={() => supabase.auth.signOut()}>Cerrar sesión</button>
