@@ -5,6 +5,7 @@ import { adjustForSoreness, cardioFor, pendingDays, prescribe, toISODate, type P
 import type { Exercise, RoutineItem, Session } from '../types'
 import ExerciseView from './ExerciseView'
 import Cardio from './Cardio'
+import { legReasons, type LegContext } from '../lib/treadmill'
 import { useRest } from '../rest'
 
 export default function Today() {
@@ -16,6 +17,7 @@ export default function Today() {
   const [cycles, setCycles] = useState(0)
   const touched = useRef(false)
   const [pending, setPending] = useState<number[]>([])
+  const [legCtx, setLegCtx] = useState<LegContext>({ yesterday: false, soreness: null })
   /** La semana del ciclo avanza al completar el Día 5, sin depender del calendario. */
   const week = Math.max(1, 1 + cycles + (settings.week_offset ?? 0))
   const [session, setSession] = useState<Session | null>(null)
@@ -75,12 +77,20 @@ export default function Today() {
     if (legDayIds.length) {
       const { data: legs } = await supabase
         .from('sessions')
-        .select('*')
+        .select('*,sets!inner(id)')
+        .eq('sets.done', true)
         .in('day_id', legDayIds)
         .lt('date', today)
         .order('date', { ascending: false })
         .limit(2)
       const list = (legs ?? []) as Session[]
+      const dayMs = 86400000
+      const yesterdayISO = toISODate(new Date(Date.now() - dayMs))
+      const threeDaysAgo = toISODate(new Date(Date.now() - 3 * dayMs))
+      setLegCtx({
+        yesterday: list.some((x) => x.date === yesterdayISO),
+        soreness: list.find((x) => x.soreness != null && x.date >= threeDaysAgo)?.soreness ?? null,
+      })
       setPendingSoreness(list.find((x) => x.soreness == null && x.status === 'done') ?? null)
       setLastSoreness(list.find((x) => x.soreness != null)?.soreness ?? null)
     }
@@ -153,7 +163,7 @@ export default function Today() {
   }
 
   if (openCardio && session && cardio) {
-    return <Cardio plan={cardio} sessionId={session.id} onBack={() => setOpenCardio(false)} />
+    return <Cardio plan={cardio} sessionId={session.id} legCtx={legCtx} onBack={() => setOpenCardio(false)} />
   }
 
   if (loading) return <div className="screen"><p>Cargando…</p></div>
@@ -233,7 +243,7 @@ export default function Today() {
             <button className={`exrow ${cardioMin > 0 ? 'finished' : ''}`} onClick={() => setOpenCardio(true)}>
               <span>
                 <strong>Cardio · {cardio.title}</strong>
-                <small>Al final de la fuerza · {cardio.kind === 'intervalos' ? '4 bloques rápidos con test de habla' : 'día suave'}{cardio.optional ? ' · opcional' : ''}</small>
+                <small>Al final de la fuerza · {cardio.kind === 'intervalos' ? (legReasons(legCtx).length > 0 ? 'se recomienda caminata suave (piernas cargadas)' : '4 bloques rápidos con test de habla') : 'día suave'}{cardio.optional ? ' · opcional' : ''}</small>
               </span>
               <span className="count">{cardioMin > 0 ? `${Math.round(cardioMin)} min ✓` : '›'}</span>
             </button>

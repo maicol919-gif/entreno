@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { suggest, totalLoad } from './progression'
 import { cardioFor, isDeload, mesocycleWeek, pendingDays, prescribe } from './plan'
-import { intervalSession, intervalWarnings, locate, nextInterval, recoveryWalk, totalSeconds } from './treadmill'
+import { intervalSession, intervalWarnings, legReasons, locate, nextInterval, recoveryWalk, totalSeconds } from './treadmill'
 import type { PastSession, RoutineItem } from '../types'
 
 const mk = (sets: [number, number, number | null][]): PastSession => ({
@@ -173,5 +173,23 @@ describe('pendingDays', () => {
   })
   it('un ciclo que empezó a mitad (3, 4) no genera pendientes anteriores', () => {
     expect(pendingDays([3, 4])).toEqual([])
+  })
+})
+
+describe('piernas y cardio', () => {
+  it('sin pierna reciente ni agujetas: sin motivos', () => {
+    expect(legReasons({ yesterday: false, soreness: null })).toEqual([])
+    expect(legReasons({ yesterday: false, soreness: 5 })).toEqual([])
+  })
+  it('pierna ayer o agujetas >= 6: recomienda suave', () => {
+    expect(legReasons({ yesterday: true, soreness: null })).toHaveLength(1)
+    expect(legReasons({ yesterday: false, soreness: 6 })).toHaveLength(1)
+    expect(legReasons({ yesterday: true, soreness: 8 })).toHaveLength(2)
+  })
+  it('caminata con piernas cargadas: máx. 2 % y 5,0 km/h, misma duración', () => {
+    const w = recoveryWalk(true)
+    expect(totalSeconds(w)).toBe(900)
+    expect(Math.max(...w.map((x) => x.incline))).toBe(2)
+    expect(Math.max(...w.map((x) => x.speed))).toBe(5)
   })
 })

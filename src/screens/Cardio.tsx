@@ -6,12 +6,14 @@ import {
   SPEECH_PHRASE,
   intervalSession,
   intervalWarnings,
+  legReasons,
   locate,
   nextInterval,
   recoveryWalk,
   totalSeconds,
   type IntervalConfig,
   type LastInterval,
+  type LegContext,
   type PastCardio,
   type Segment,
   type SpeechTest,
@@ -25,6 +27,7 @@ interface Run {
   start: number
   mode: Mode
   cfg: IntervalConfig
+  reduced: boolean
 }
 
 interface LogRow extends PastCardio {
@@ -61,10 +64,11 @@ const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '
 interface Props {
   plan: CardioPlan
   sessionId: string
+  legCtx: LegContext
   onBack: () => void
 }
 
-export default function Cardio({ plan, sessionId, onBack }: Props) {
+export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   const { clear: clearRest } = useRest()
   const saved = useRef(readRun())
   const [logs, setLogs] = useState<LogRow[] | null>(null)
@@ -100,8 +104,11 @@ export default function Cardio({ plan, sessionId, onBack }: Props) {
   }, [logs])
 
   const next = useMemo(() => nextInterval(lastInterval), [lastInterval])
-  const warnings = useMemo(() => intervalWarnings(logs ?? [], today, sevenDaysAgo()), [logs, today])
+  const legWhy = useMemo(() => legReasons(legCtx), [legCtx])
+  const warnings = useMemo(() => [...legWhy, ...intervalWarnings(logs ?? [], today, sevenDaysAgo())], [legWhy, logs, today])
   const recommendSoft = plan.kind === 'intervalos' && (warnings.length > 0 || next.suggestSoft)
+  const [reducedChoice, setReducedChoice] = useState<boolean | null>(null)
+  const reduced = run?.reduced ?? reducedChoice ?? legWhy.length > 0
 
   // si hay una advertencia, el modo recomendado cambia a caminata suave (salvo que elijas lo contrario)
   useEffect(() => {
@@ -109,7 +116,7 @@ export default function Cardio({ plan, sessionId, onBack }: Props) {
   }, [logs, run, override, recommendSoft])
 
   const cfg: IntervalConfig = run?.cfg ?? next.config
-  const segs: Segment[] = useMemo(() => (mode === 'intervalos' ? intervalSession(cfg) : recoveryWalk()), [mode, cfg])
+  const segs: Segment[] = useMemo(() => (mode === 'intervalos' ? intervalSession(cfg) : recoveryWalk(reduced)), [mode, cfg, reduced])
   const total = totalSeconds(segs)
 
   const elapsed = run ? Math.max(0, Math.floor((now - run.start) / 1000)) : 0
@@ -153,7 +160,7 @@ export default function Cardio({ plan, sessionId, onBack }: Props) {
   function begin() {
     clearRest()
     lastIndex.current = -1
-    const r: Run = { start: Date.now(), mode, cfg }
+    const r: Run = { start: Date.now(), mode, cfg, reduced }
     setNow(r.start)
     setRun(r)
     writeRun(r)
@@ -282,7 +289,15 @@ export default function Cardio({ plan, sessionId, onBack }: Props) {
 
       {warnings.map((w) => <p key={w} className="fixed">⚠ {w}</p>)}
       {mode === 'intervalos' && <p className="fixed">📌 {next.message}</p>}
-      {mode === 'recuperacion' && <p className="muted">Frases completas todo el rato. Si las piernas están muy cargadas, baja la inclinación.</p>}
+      {mode === 'recuperacion' && (
+        <>
+          <p className="muted">Frases completas todo el rato.</p>
+          <label className="check-row">
+            <input type="checkbox" checked={reduced} onChange={(e) => setReducedChoice(e.target.checked)} />
+            <span>Piernas cargadas: inclinación máx. 2 % y velocidad máx. 5,0 km/h</span>
+          </label>
+        </>
+      )}
 
       {plan.kind === 'intervalos' && (
         <div className="row">

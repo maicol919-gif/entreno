@@ -53,14 +53,12 @@ export function intervalSession(cfg: IntervalConfig): Segment[] {
 }
 
 /** Día suave: caminata en cuesta de 15 min, frases completas todo el rato. */
-export function recoveryWalk(): Segment[] {
-  const s = (min: number, speed: number, incline: number): Segment => ({
-    label: `Cuesta ${incline} %`,
-    sec: min * 60,
-    speed,
-    incline,
-    kind: 'rec',
-  })
+export function recoveryWalk(reduced = false): Segment[] {
+  // con piernas cargadas: inclinación máxima 2 % y velocidad máxima 5,0 km/h
+  const s = (min: number, speed: number, incline: number): Segment => {
+    const inc = reduced ? Math.min(incline, 2) : incline
+    return { label: `Cuesta ${inc} %`, sec: min * 60, speed: reduced ? Math.min(speed, 5.0) : speed, incline: inc, kind: 'rec' }
+  }
   return [s(1, 4.5, 1), s(2, 4.5, 2), s(2, 5.0, 3), s(3, 5.5, 4), s(3, 5.5, 5), s(2, 5.0, 3), s(2, 4.5, 1)]
 }
 
@@ -173,5 +171,20 @@ export function intervalWarnings(logs: PastCardio[], today: string, sinceISO: st
   if (intervals.filter((d) => d >= sinceISO && d < today).length >= 3) {
     out.push('Ya llevas 3 sesiones de intervalos en los últimos 7 días: hoy descansa o camina suave.')
   }
+  return out
+}
+
+export interface LegContext {
+  /** ayer hubo sesión de pierna */
+  yesterday: boolean
+  /** agujetas (0-10) de la última sesión de pierna de los últimos 3 días, si las registraste */
+  soreness: number | null
+}
+
+/** Motivos para pasar de intervalos a caminata suave (o reducir la inclinación) por la pierna. */
+export function legReasons(ctx: LegContext): string[] {
+  const out: string[] = []
+  if (ctx.yesterday) out.push('Ayer fue día de pierna: los intervalos a 9,5-10 km/h cargan justo esos músculos.')
+  if (ctx.soreness != null && ctx.soreness >= 6) out.push(`Tus agujetas de pierna están en ${ctx.soreness}/10.`)
   return out
 }
