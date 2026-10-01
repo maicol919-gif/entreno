@@ -1,27 +1,31 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useData } from '../store'
-import { adjustForSoreness, mesocycleWeek, prescribe, toISODate, weekdayOf, type Prescription } from '../lib/plan'
+import { adjustForSoreness, cardioFor, pendingDays, prescribe, toISODate, type Prescription } from '../lib/plan'
 import type { Exercise, RoutineItem, Session } from '../types'
 import ExerciseView from './ExerciseView'
+import Cardio from './Cardio'
 import { useRest } from '../rest'
-
-const WEEKDAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
 export default function Today() {
   const { days, items, exercises, settings } = useData()
   const { clear: clearRest } = useRest()
   const now = useMemo(() => new Date(), [])
   const today = toISODate(now)
-  const week = settings.mesocycle_start ? mesocycleWeek(settings.mesocycle_start, now) : 1
-  const defaultDay = days.find((d) => d.weekday === weekdayOf(now)) ?? null
-  const [dayId, setDayId] = useState<string | null>(defaultDay?.id ?? null)
+  const [dayId, setDayId] = useState<string | null>(null)
+  const [cycles, setCycles] = useState(0)
+  const touched = useRef(false)
+  const [pending, setPending] = useState<number[]>([])
+  /** La semana del ciclo avanza al completar el Día 5, sin depender del calendario. */
+  const week = Math.max(1, 1 + cycles + (settings.week_offset ?? 0))
   const [session, setSession] = useState<Session | null>(null)
   const [doneCount, setDoneCount] = useState<Record<string, number>>({})
   const [openItem, setOpenItem] = useState<RoutineItem | null>(null)
   const [pendingSoreness, setPendingSoreness] = useState<Session | null>(null)
   const [lastSoreness, setLastSoreness] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
+  const [openCardio, setOpenCardio] = useState(false)
+  const [cardioMin, setCardioMin] = useState(0)
 
   const day = days.find((d) => d.id === dayId) ?? null
   const exById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
@@ -30,12 +34,41 @@ export default function Today() {
     const { data: s } = await supabase.from('sessions').select('*').eq('date', today).order('started_at', { ascending: false }).limit(1)
     const cur = (s?.[0] as Session | undefined) ?? null
     setSession(cur)
+    const lastDay5 = days.find((d) => d.weekday === 5)
+    if (lastDay5) {
+      const { data: c } = await supabase.from('sessions').select('id,date,sets!inner(id)').eq('day_id', lastDay5.id).eq('sets.done', true).lt('date', today)
+      setCycles((c ?? []).length)
+      // días del ciclo actual (desde el último Día 5 terminado) para detectar los que quedaron pendientes
+      const since = (c ?? []).map((r) => r.date as string).sort().pop()
+      let q = supabase.from('sessions').select('day_id,date,sets!inner(id)').eq('source', 'app').eq('sets.done', true).not('day_id', 'is', null).lt('date', today)
+      if (since) q = q.gt('date', since)
+      const { data: cyc } = await q
+      const nums = (cyc ?? []).map((r) => days.find((d) => d.id === r.day_id)?.weekday).filter((n): n is number => n != null)
+      setPending(pendingDays([...new Set(nums)]))
+    }
+    if (!cur && !touched.current) {
+      // el día que toca es el siguiente al último día entrenado, sin importar el día de la semana
+      const { data: l } = await supabase
+        .from('sessions')
+        .select('day_id,sets!inner(id)')
+        .eq('source', 'app')
+        .eq('sets.done', true)
+        .not('day_id', 'is', null)
+        .lt('date', today)
+        .order('date', { ascending: false })
+        .limit(1)
+      const lastDay = days.find((d) => d.id === l?.[0]?.day_id)
+      const nextNumber = lastDay ? (lastDay.weekday % days.length) + 1 : 1
+      setDayId(days.find((d) => d.weekday === nextNumber)?.id ?? null)
+    }
     if (cur) {
       setDayId((d) => cur.day_id ?? d)
       const { data: sets } = await supabase.from('sets').select('exercise_id').eq('session_id', cur.id).eq('done', true)
       const c: Record<string, number> = {}
       for (const r of sets ?? []) c[r.exercise_id as string] = (c[r.exercise_id as string] ?? 0) + 1
       setDoneCount(c)
+      const { data: cl } = await supabase.from('cardio_logs').select('minutes').eq('session_id', cur.id)
+      setCardioMin((cl ?? []).reduce((a, r) => a + Number(r.minutes), 0))
     }
     // agujetas pendientes de la última sesión de pierna terminada antes de hoy
     const legDayIds = days.filter((d) => d.name.startsWith('Pierna')).map((d) => d.id)
@@ -56,7 +89,7 @@ export default function Today() {
 
   useEffect(() => {
     void refresh()
-  }, [refresh, openItem])
+  }, [refresh, openItem, openCardio])
 
   async function start() {
     if (!dayId) return
@@ -84,6 +117,7 @@ export default function Today() {
     setPendingSoreness(null)
   }
 
+  const cardio = day ? cardioFor(day.weekday, week) : null
   const dayItems = items.filter((i) => i.day_id === dayId && i.start_week <= week).sort((a, b) => a.position - b.position)
 
   function rxFor(item: RoutineItem, ex: Exercise): Prescription {
@@ -105,21 +139,29 @@ export default function Today() {
         rx={rxFor(openItem, ex)}
         restSeconds={settings.rest_seconds}
         onBack={() => setOpenItem(null)}
-        nextName={nextEx?.name ?? null}
+        nextName={nextEx?.name ?? (cardio ? `Cardio · ${cardio.title}` : null)}
         onNext={() => {
           window.scrollTo({ top: 0 })
-          setOpenItem(nextItem)
+          if (nextItem) setOpenItem(nextItem)
+          else {
+            setOpenItem(null)
+            setOpenCardio(true)
+          }
         }}
       />
     )
+  }
+
+  if (openCardio && session && cardio) {
+    return <Cardio plan={cardio} sessionId={session.id} onBack={() => setOpenCardio(false)} />
   }
 
   if (loading) return <div className="screen"><p>Cargando…</p></div>
 
   return (
     <div className="screen">
-      <h2>{WEEKDAYS[weekdayOf(now)]} · semana {week}</h2>
-      {settings.mesocycle_start == null && <p className="muted">Define el inicio del ciclo en Ajustes.</p>}
+      <h2>{day ? `Día ${day.weekday} · ${day.name}` : 'Descanso'}</h2>
+      <p className="muted">Semana {week} del ciclo · toca el siguiente día de tu rutina, sin importar la fecha.</p>
 
       {pendingSoreness && (
         <section className="card warn">
@@ -131,11 +173,28 @@ export default function Today() {
         </section>
       )}
 
+      {!session && pending.length > 0 && (
+        <section className="card warn">
+          <h3>Día pendiente</h3>
+          {pending.map((n) => {
+            const d = days.find((x) => x.weekday === n)
+            if (!d) return null
+            return (
+              <p key={n}>
+                Te saltaste el <strong>Día {n} · {d.name}</strong> en este ciclo.{' '}
+                <button className="link" onClick={() => { touched.current = true; setDayId(d.id) }}>Hacerlo hoy</button>
+              </p>
+            )
+          })}
+          <p className="muted">Si es de pierna y hiciste pierna ayer, mejor sigue con el día que te toca y recupéralo después.</p>
+        </section>
+      )}
+
       <label className="muted">
         Día de rutina
-        <select value={dayId ?? ''} disabled={session?.status === 'in_progress'} onChange={(e) => setDayId(e.target.value || null)}>
+        <select value={dayId ?? ''} disabled={session?.status === 'in_progress'} onChange={(e) => { touched.current = true; setDayId(e.target.value || null) }}>
           <option value="">Descanso</option>
-          {days.map((d) => <option key={d.id} value={d.id}>{WEEKDAYS[d.weekday]} · {d.name}</option>)}
+          {days.map((d) => <option key={d.id} value={d.id}>Día {d.weekday} · {d.name}</option>)}
         </select>
       </label>
 
@@ -170,6 +229,15 @@ export default function Today() {
               </button>
             )
           })}
+          {cardio && (
+            <button className={`exrow ${cardioMin > 0 ? 'finished' : ''}`} onClick={() => setOpenCardio(true)}>
+              <span>
+                <strong>Cardio · {cardio.title}</strong>
+                <small>Al final de la fuerza · {cardio.kind === 'intervalos' ? '4 bloques rápidos con test de habla' : 'día suave'}{cardio.optional ? ' · opcional' : ''}</small>
+              </span>
+              <span className="count">{cardioMin > 0 ? `${Math.round(cardioMin)} min ✓` : '›'}</span>
+            </button>
+          )}
           {session.status === 'in_progress' && <button className="primary" onClick={finish}>Terminar sesión</button>}
         </>
       )}

@@ -67,3 +67,49 @@ export function adjustForSoreness(sets: number, lastSoreness: number | null): nu
   if (lastSoreness >= 7) return Math.max(1, Math.round(sets * 0.7))
   return sets
 }
+
+export interface CardioPlan {
+  kind: 'intervalos' | 'recuperacion'
+  minutes: number
+  title: string
+  detail: string
+  optional: boolean
+}
+
+/**
+ * Cardio en cinta al final de la sesión de fuerza (protocolo propio de Maycol).
+ * - Días 1, 3 y 5 (torso): intervalos (la regla de no repetir en días seguidos se valida con las fechas reales).
+ * - Días 2 y 4 (pierna): caminata suave en cuesta, opcional.
+ * - Semana de descarga: solo caminata suave.
+ */
+export function cardioFor(weekday: number, week: number): CardioPlan | null {
+  const soft: CardioPlan = {
+    kind: 'recuperacion',
+    minutes: 15,
+    title: 'Caminata en cuesta 15 min',
+    detail: 'Día suave: frases completas todo el rato. Inclinación de 1 a 5 %, velocidad 4,5-5,5 km/h.',
+    optional: weekday === 2 || weekday === 4,
+  }
+  if (weekday === 6 || weekday === 7) return null
+  if (isDeload(week) || weekday === 2 || weekday === 4) return soft
+  return {
+    kind: 'intervalos',
+    minutes: 15,
+    title: 'Intervalos en cinta',
+    detail: '4 bloques de 2 min rápidos (9,5-10,0 km/h, 1 %) con recuperación a 5,5 km/h. Test de habla al final.',
+    optional: false,
+  }
+}
+
+/**
+ * Días del ciclo que quedaron sin hacer entre el primero y el último entrenados.
+ * Ej.: hiciste el Día 1 y el 3 → pendiente el 2. (Lo anterior al primero se da por hecho: el ciclo empezó ahí.)
+ */
+export function pendingDays(doneNumbers: number[]): number[] {
+  if (doneNumbers.length === 0) return []
+  const first = Math.min(...doneNumbers)
+  const last = Math.max(...doneNumbers)
+  const out: number[] = []
+  for (let n = first + 1; n < last; n++) if (!doneNumbers.includes(n)) out.push(n)
+  return out
+}

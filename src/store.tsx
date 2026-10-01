@@ -6,6 +6,7 @@ import type { Exercise, RoutineDay, RoutineItem } from './types'
 export interface Settings {
   mesocycle_start: string | null
   rest_seconds: number
+  week_offset: number
 }
 
 interface Data {
@@ -42,7 +43,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         exercises: ex.data as Exercise[],
         days: d.data as RoutineDay[],
         items: it.data as RoutineItem[],
-        settings: (st.data as Settings | null) ?? { mesocycle_start: null, rest_seconds: 120 },
+        settings: (st.data as Settings | null) ?? { mesocycle_start: null, rest_seconds: 120, week_offset: 0 },
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))

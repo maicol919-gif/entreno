@@ -78,3 +78,20 @@ select.bad { border-color: var(--bad); }
 main { padding-bottom: 150px; }
 button.next { width: 100%; margin: 4px 0 12px; padding: 16px; font-weight: 700; }
 .center-text { text-align: center; margin: 0 0 12px; }
+.clockbig { font-size: 2.4rem; font-weight: 700; text-align: center; font-variant-numeric: tabular-nums; margin: 4px 0 8px; }
+.runcard { border-radius: 16px; padding: 20px; text-align: center; margin: 8px 0; background: #1c2230; }
+.runcard.fast { background: #5a1f1f; }
+.runcard.rec { background: #1f4a2c; }
+.runcard.warm, .runcard.cool { background: #1f3a5a; }
+.runlabel { font-size: 1rem; opacity: .85; margin: 0; }
+.runspeed { font-size: 3.6rem; font-weight: 800; margin: 4px 0; line-height: 1; }
+.runspeed small { font-size: 1.1rem; font-weight: 500; }
+.runincline { font-size: 1.2rem; margin: 0 0 8px; }
+.runleft { font-size: 2.6rem; font-weight: 700; font-variant-numeric: tabular-nums; margin: 0; }
+.progress { height: 8px; background: #0f1218; border-radius: 6px; overflow: hidden; margin: 8px 0; }
+.progress div { height: 100%; background: var(--accent); }
+.choice { display: block; width: 100%; margin: 6px 0; text-align: left; }
+.choice.on { border-color: var(--accent); background: #1d3a29; }
+.segtable { width: 100%; border-collapse: collapse; font-size: .85rem; margin: 6px 0 12px; }
+.segtable td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.segtable tr.fast td { color: #ff9c9c; font-weight: 700; }

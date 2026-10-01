@@ -37,11 +37,9 @@ interface Trend {
   status: 'up' | 'flat' | 'stalled'
 }
 
-function mondayOf(d: Date): string {
-  const x = new Date(d)
-  const wd = x.getDay() === 0 ? 7 : x.getDay()
-  x.setDate(x.getDate() - (wd - 1))
-  return toISODate(x)
+/** Ventana móvil de 7 días (no dependes de un calendario fijo). */
+function sevenDaysAgo(): string {
+  return toISODate(new Date(Date.now() - 6 * 86400000))
 }
 
 async function loadAllSets(): Promise<Row[]> {
@@ -73,7 +71,7 @@ export default function Progress() {
   const dateOf = (r: Row) => (Array.isArray(r.sessions) ? r.sessions[0].date : r.sessions.date)
 
   const weekly = useMemo(() => {
-    const monday = mondayOf(new Date())
+    const monday = sevenDaysAgo()
     const counts = new Map<string, number>()
     for (const r of rows ?? []) {
       if (dateOf(r) < monday) continue
@@ -129,7 +127,7 @@ export default function Progress() {
       {rows && (
         <>
           <section className="card">
-            <h3>Series de esta semana por músculo</h3>
+            <h3>Series de los últimos 7 días por músculo</h3>
             <p className="muted">Objetivo semanal entre paréntesis. Verde = dentro del rango.</p>
             {Object.entries(TARGETS).map(([m, [lo, hi]]) => {
               const n = weekly.get(m) ?? 0
@@ -166,6 +164,7 @@ export default function Progress() {
         </>
       )}
 
+      <CardioWeek />
       <BodyWeight />
     </div>
   )
@@ -209,6 +208,39 @@ function BodyWeight() {
         </p>
       )}
       {list.slice(0, 7).map((x) => <p key={x.date} className="muted">{x.date}: {x.kg} kg</p>)}
+    </section>
+  )
+}
+
+function CardioWeek() {
+  const [iv, setIv] = useState(0)
+  const [walk, setWalk] = useState(0)
+  const [lastSpeech, setLastSpeech] = useState<string | null>(null)
+  useEffect(() => {
+    void supabase
+      .from('cardio_logs')
+      .select('kind,minutes,speech_test,date')
+      .gte('date', sevenDaysAgo())
+      .order('date', { ascending: false })
+      .then(({ data }) => {
+        let a = 0
+        let b = 0
+        for (const r of data ?? []) {
+          if (r.kind === 'intervalos') a += 1
+          else b += Number(r.minutes)
+        }
+        setIv(a)
+        setWalk(b)
+        setLastSpeech((data ?? []).find((r) => r.speech_test)?.speech_test ?? null)
+      })
+  }, [])
+  const label = lastSpeech === 'entera' ? 'entera' : lastSpeech === 'dos' ? 'partida en dos' : lastSpeech === 'mitad' ? 'no pasó de la mitad' : '—'
+  return (
+    <section className="card">
+      <h3>Cardio de los últimos 7 días</h3>
+      <p>Intervalos: <strong className={iv >= 1 && iv <= 3 ? 'ok' : ''}>{iv}</strong> <span className="muted">(máx. 3, nunca días seguidos)</span></p>
+      <p>Caminata suave: <strong>{Math.round(walk)} min</strong></p>
+      <p className="muted">Último test de habla: {label}</p>
     </section>
   )
 }
