@@ -8,6 +8,7 @@ import HistoryTab from './screens/History'
 import Gym from './screens/Gym'
 import SettingsTab from './screens/Settings'
 import Progress from './screens/Progress'
+import { RestBar, RestProvider } from './rest'
 
 type Tab = 'today' | 'progress' | 'history' | 'gym' | 'settings'
 
@@ -34,6 +35,7 @@ export default function App() {
 
   return (
     <DataProvider>
+      <RestProvider>
       <main>
         {tab === 'today' && <Today />}
         {tab === 'progress' && <Progress />}
@@ -41,6 +43,7 @@ export default function App() {
         {tab === 'gym' && <Gym />}
         {tab === 'settings' && <SettingsTab />}
       </main>
+      <RestBar />
       <nav className="tabs">
         {TABS.map(([k, label]) => (
           <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>
@@ -48,6 +51,7 @@ export default function App() {
           </button>
         ))}
       </nav>
+      </RestProvider>
     </DataProvider>
   )
 }

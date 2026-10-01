@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useRest } from '../rest'
 import { supabase } from '../lib/supabase'
 import { fmtDate, fmtSets, loadPast } from '../lib/history'
 import { suggest, type Suggestion } from '../lib/progression'
@@ -29,9 +30,8 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   const [past, setPast] = useState<PastSession[]>([])
   const [sugg, setSugg] = useState<Suggestion | null>(null)
   const [note, setNote] = useState('')
-  const [rest, setRest] = useState(0)
+  const { start: startTimer } = useRest()
   const [needRir, setNeedRir] = useState<string | null>(null)
-  const timer = useRef<number | null>(null)
   const dirty = useRef<Set<string>>(new Set())
   const setsRef = useRef<SetRow[] | null>(null)
   const [pending, setPending] = useState(0)
@@ -43,22 +43,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
     setsRef.current = sets
   }, [sets])
 
-  const startRest = useCallback(() => {
-    setRest(restSeconds)
-    if (timer.current) window.clearInterval(timer.current)
-    timer.current = window.setInterval(() => {
-      setRest((r) => {
-        if (r <= 1) {
-          if (timer.current) window.clearInterval(timer.current)
-          navigator.vibrate?.([200, 100, 200])
-          return 0
-        }
-        return r - 1
-      })
-    }, 1000)
-  }, [restSeconds])
-
-  useEffect(() => () => { if (timer.current) window.clearInterval(timer.current) }, [])
+  const startRest = () => startTimer(restSeconds)
 
   useEffect(() => {
     let cancelled = false
@@ -174,16 +159,9 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   }
 
   const last = past[0]
-  const mm = String(Math.floor(rest / 60)).padStart(1, '0')
-  const ss = String(rest % 60).padStart(2, '0')
 
   return (
     <div className="screen">
-      {rest > 0 && (
-        <div className="rest" onClick={() => setRest(0)}>
-          Descanso {mm}:{ss} <span>(toca para saltar)</span>
-        </div>
-      )}
       <button className="link back" onClick={onBack}>← Sesión</button>
       <h2>{exercise.name}</h2>
       <p className="muted">
