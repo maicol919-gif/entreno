@@ -22,47 +22,67 @@ interface Params {
 }
 
 /**
- * Doble progresión.
- * - Si todas las series llegaron al tope de reps con RIR >= objetivo: sube carga y vuelve al mínimo de reps
- *   (en ejercicios con ayuda la carga BAJA).
- * - Si no: misma carga, una repetición más por serie (hasta el tope).
+ * Carga base a partir de la última sesión (series rectas con el mismo peso):
+ * el peso más exigente que usaste en al menos 2 series (en ejercicios con ayuda, la menor ayuda).
+ * Si ninguno se repitió, el más exigente con reps dentro de rango; si no, el más ligero.
+ */
+export function baseLoad(sets: PastSession['sets'], repMin: number, loadType: LoadType): number | null {
+  const withLoad = sets.filter((s) => s.load_kg != null)
+  if (withLoad.length === 0) return null
+  const hardFirst = loadType === 'assistance' ? (a: number, b: number) => a - b : (a: number, b: number) => b - a
+  const loads = [...new Set(withLoad.map((s) => s.load_kg as number))].sort(hardFirst)
+  const repeated = loads.find((l) => withLoad.filter((s) => s.load_kg === l).length >= 2)
+  if (repeated != null) return repeated
+  const inRange = loads.find((l) => withLoad.some((s) => s.load_kg === l && (s.reps == null || s.reps >= repMin)))
+  return inRange ?? loads[loads.length - 1]
+}
+
+/**
+ * Doble progresión con series rectas.
+ * - Base: la carga calculada de la última sesión; reps objetivo = promedio de reps a esa carga + 1 (dentro del rango).
+ * - Si en la última sesión TODAS las series prescritas llegaron al tope de reps con RIR suficiente:
+ *   sube carga y vuelve al mínimo de reps (en ejercicios con ayuda la carga BAJA).
  */
 export function suggest(p: Params): Suggestion {
-  const past = p.last?.sets.filter((s) => s.reps != null) ?? []
-  if (!p.last || past.length === 0) {
+  const past = p.last?.sets ?? []
+  const load = p.last ? baseLoad(past, p.repMin, p.loadType) : null
+  if (!p.last || past.length === 0 || (load == null && past.every((s) => s.reps == null))) {
     return {
       kind: 'new',
       message: `Sin historial: elige una carga con la que llegues a ${p.repMin}-${p.repMax} reps dejando ${p.rirTarget} en reserva.`,
       targets: Array.from({ length: p.sets }, () => ({ reps: p.repMin, load_kg: null })),
     }
   }
-  const lastSets = past.slice(0, p.sets).length >= p.sets ? past.slice(0, p.sets) : past
-  const allAtTop = lastSets.every((s) => (s.reps ?? 0) >= p.repMax)
-  const rirOk = lastSets.every((s) => s.rir == null || s.rir >= p.rirTarget)
-  const targets: Target[] = Array.from({ length: p.sets }, (_, i) => {
-    const ref = lastSets[Math.min(i, lastSets.length - 1)]
-    return { reps: ref.reps ?? p.repMin, load_kg: ref.load_kg }
-  })
 
-  if (allAtTop && rirOk) {
+  const atLoad = load == null ? past : past.filter((s) => s.load_kg === load)
+  const reps = atLoad.map((s) => s.reps).filter((r): r is number => r != null)
+  const meanReps = reps.length ? Math.round(reps.reduce((a, b) => a + b, 0) / reps.length) : p.repMin
+  const rirOk = atLoad.every((s) => s.rir == null || s.rir >= p.rirTarget)
+  const allAtTop = reps.length >= p.sets && reps.every((r) => r >= p.repMax)
+  const when = p.last.date
+
+  if (allAtTop && rirOk && load != null) {
     const sign = p.loadType === 'assistance' ? -1 : 1
-    const raised = targets.map((t) => ({
-      reps: p.repMin,
-      load_kg: t.load_kg == null ? null : Math.max(0, round(t.load_kg + sign * p.increment)),
-    }))
+    const next = Math.max(0, round(load + sign * p.increment))
     return {
       kind: 'raise',
       message:
         p.loadType === 'assistance'
-          ? 'Cumpliste el tope de reps: baja la ayuda.'
-          : 'Cumpliste el tope de reps con RIR suficiente: sube la carga.',
-      targets: raised,
+          ? `Última vez (${when}) hiciste el tope de reps con ${load} kg de ayuda: baja la ayuda.`
+          : `Última vez (${when}) hiciste el tope de reps con ${load} kg y RIR suficiente: sube la carga.`,
+      targets: Array.from({ length: p.sets }, () => ({ reps: p.repMin, load_kg: next })),
     }
   }
+
+  const reptarget = Math.min(p.repMax, Math.max(p.repMin, meanReps + 1))
+  const sets = atLoad.length
   return {
     kind: 'repeat',
-    message: 'Misma carga: intenta una repetición más por serie.',
-    targets: targets.map((t) => ({ reps: Math.min(p.repMax, t.reps + 1), load_kg: t.load_kg })),
+    message:
+      load == null
+        ? `Última vez (${when}) sin carga registrada: mantén el esfuerzo y suma una repetición.`
+        : `Base: ${load} kg, tu carga más exigente de la última vez (${when}, ${sets} serie${sets === 1 ? '' : 's'}). Intenta ${reptarget} reps en todas.`,
+    targets: Array.from({ length: p.sets }, () => ({ reps: reptarget, load_kg: load })),
   }
 }
 
