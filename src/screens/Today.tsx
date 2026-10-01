@@ -4,11 +4,13 @@ import { useData } from '../store'
 import { adjustForSoreness, mesocycleWeek, prescribe, toISODate, weekdayOf, type Prescription } from '../lib/plan'
 import type { Exercise, RoutineItem, Session } from '../types'
 import ExerciseView from './ExerciseView'
+import { useRest } from '../rest'
 
 const WEEKDAYS = ['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo']
 
 export default function Today() {
   const { days, items, exercises, settings } = useData()
+  const { clear: clearRest } = useRest()
   const now = useMemo(() => new Date(), [])
   const today = toISODate(now)
   const week = settings.mesocycle_start ? mesocycleWeek(settings.mesocycle_start, now) : 1
@@ -64,6 +66,7 @@ export default function Today() {
 
   async function finish() {
     if (!session) return
+    clearRest()
     await supabase.from('sessions').update({ status: 'done', ended_at: new Date().toISOString() }).eq('id', session.id)
     void refresh()
   }
