@@ -7,11 +7,13 @@ import Today from './screens/Today'
 import HistoryTab from './screens/History'
 import Gym from './screens/Gym'
 import SettingsTab from './screens/Settings'
+import Progress from './screens/Progress'
 
-type Tab = 'today' | 'history' | 'gym' | 'settings'
+type Tab = 'today' | 'progress' | 'history' | 'gym' | 'settings'
 
 const TABS: [Tab, string][] = [
   ['today', 'Hoy'],
+  ['progress', 'Progreso'],
   ['history', 'Historial'],
   ['gym', 'Gimnasio'],
   ['settings', 'Ajustes'],
@@ -34,6 +36,7 @@ export default function App() {
     <DataProvider>
       <main>
         {tab === 'today' && <Today />}
+        {tab === 'progress' && <Progress />}
         {tab === 'history' && <HistoryTab />}
         {tab === 'gym' && <Gym />}
         {tab === 'settings' && <SettingsTab />}

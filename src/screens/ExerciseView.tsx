@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { fmtDate, fmtSets, loadPast } from '../lib/history'
 import { suggest, type Suggestion } from '../lib/progression'
 import type { Prescription } from '../lib/plan'
+import { GUIDES, VIDEOS, videoSearchUrl } from '../data/guides'
 import type { Exercise, PastSession, SetRow } from '../types'
 
 const LOAD_LABEL: Record<Exercise['load_type'], string> = {
@@ -31,6 +32,16 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   const [rest, setRest] = useState(0)
   const [needRir, setNeedRir] = useState<string | null>(null)
   const timer = useRef<number | null>(null)
+  const dirty = useRef<Set<string>>(new Set())
+  const setsRef = useRef<SetRow[] | null>(null)
+  const [pending, setPending] = useState(0)
+  const [showGuide, setShowGuide] = useState(false)
+  const [showVideo, setShowVideo] = useState(false)
+  const videoId = VIDEOS[exercise.name]
+  const guide = GUIDES[exercise.name]
+  useEffect(() => {
+    setsRef.current = sets
+  }, [sets])
 
   const startRest = useCallback(() => {
     setRest(restSeconds)
@@ -92,8 +103,29 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   }, [exercise.id, sessionId, rx.sets, rx.repMin, rx.repMax, rx.rirTarget])
 
   async function save(row: SetRow) {
-    await supabase.from('sets').update({ reps: row.reps, load_kg: row.load_kg, rir: row.rir, done: row.done }).eq('id', row.id)
+    const { error } = await supabase.from('sets').update({ reps: row.reps, load_kg: row.load_kg, rir: row.rir, done: row.done }).eq('id', row.id)
+    if (error) dirty.current.add(row.id)
+    else dirty.current.delete(row.id)
+    setPending(dirty.current.size)
   }
+
+  // reintenta guardar lo pendiente cuando vuelve la señal
+  useEffect(() => {
+    const retry = () => {
+      for (const id of [...dirty.current]) {
+        const row = setsRef.current?.find((r) => r.id === id)
+        if (row) void save(row)
+        else dirty.current.delete(id)
+      }
+    }
+    const t = window.setInterval(retry, 5000)
+    window.addEventListener('online', retry)
+    return () => {
+      window.clearInterval(t)
+      window.removeEventListener('online', retry)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function patch(id: string, p: Partial<SetRow>, persist = false) {
     setSets((cur) => {
@@ -158,7 +190,39 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
         {exercise.muscle_primary} · {rx.sets} × {rx.repMin}-{rx.repMax} · RIR {rx.rirTarget}
         {rx.label ? ` · ${rx.label}` : ''}
       </p>
+      {pending > 0 && <p className="err">Sin conexión: {pending} serie(s) pendientes de guardar. Se reintenta solo.</p>}
       {exercise.fixed_note && <p className="fixed">📌 {exercise.fixed_note}</p>}
+
+      <section className="card guide">
+        <div className="row between">
+          <h3>Cómo hacerlo</h3>
+          <button className="link" onClick={() => setShowGuide((v) => !v)}>{showGuide ? 'Ocultar' : 'Ver'}</button>
+        </div>
+        {showGuide && guide && (
+          <>
+            <p><strong>Posición:</strong> {guide.setup}</p>
+            <ol>{guide.steps.map((s) => <li key={s}>{s}</li>)}</ol>
+            <p><strong>Evita:</strong></p>
+            <ul>{guide.errors.map((s) => <li key={s}>{s}</li>)}</ul>
+          </>
+        )}
+        {showGuide && !guide && <p className="muted">Aún no hay guía escrita para este ejercicio.</p>}
+        {videoId && !showVideo && <button className="primary" onClick={() => setShowVideo(true)}>▶ Ver video de la técnica</button>}
+        {videoId && showVideo && (
+          <div className="video">
+            <iframe
+              src={`https://www.youtube-nocookie.com/embed/${videoId}?rel=0&playsinline=1`}
+              title={exercise.name}
+              allow="encrypted-media; picture-in-picture; fullscreen"
+              allowFullScreen
+              loading="lazy"
+            />
+          </div>
+        )}
+        <a className="btnlink" href={videoSearchUrl(exercise.name, guide?.query)} target="_blank" rel="noreferrer">
+          {videoId ? 'Buscar más videos' : '▶ Buscar videos de la técnica'}
+        </a>
+      </section>
 
       <section className="card last">
         <h3>Última vez</h3>
