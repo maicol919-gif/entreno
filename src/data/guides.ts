@@ -88,7 +88,7 @@ export const GUIDES: Record<string, Guide> = {
     errors: ['Rotar los hombros', 'Flexionar los codos', 'Mover la cabeza hacia delante'],
   },
   'Curl martillo': {
-    setup: 'De pie o sentado, mancuernas con agarre neutro (palmas enfrentadas). Codos pegados al cuerpo.',
+    setup: 'De pie (como en Maru; sentado costaría ~5-10 % menos peso). Ambos brazos a la vez, mancuernas con agarre neutro (palmas enfrentadas). Codos pegados al cuerpo.',
     steps: ['Sube las mancuernas sin mover los codos.', 'Aprieta arriba.', 'Baja en 2 s hasta extender.'],
     errors: ['Balancear el tronco', 'Adelantar los codos', 'Bajar de golpe'],
   },
