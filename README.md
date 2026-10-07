@@ -11,8 +11,11 @@ App web instalable (PWA) para llevar un entrenamiento de fuerza con progresión 
 - **Descanso global**: contador siempre visible, que sobrevive a cambiar de pantalla o recargar, con vibración y sonido.
 - **Guía de técnica** por ejercicio (posición, pasos, errores) y video de YouTube incrustado para la mayoría.
 - **Piernas con arranque suave**: semanas 1-3 con menos series y RIR alto; descarga cada 7.ª semana; las agujetas (0-10) que anotas ajustan el volumen de la siguiente sesión de pierna.
-- **Cardio en cinta guiado** al final de la sesión: intervalos o caminata en cuesta, tramo a tramo (velocidad, inclinación, avisos), test de habla y progresión de una sola variable por sesión. Pasa a caminata suave si ayer fue pierna o hay agujetas altas.
+- **Cardio en cinta guiado** al final de la sesión: intervalos de 20 min o caminata en cuesta, tramo a tramo (velocidad, inclinación, avisos), test de habla y progresión de una sola variable por sesión. Antes de empezar pregunta cómo sientes las piernas (frescas, normales, cargadas) y propone intervalos o caminata suave. El cronómetro se guarda por hora de inicio: si la página se recarga, el cardio se reabre solo y sigue contando.
 - **Progreso**: series de los últimos 7 días por músculo contra su rango objetivo, ejercicios que suben o están estancados, cardio y peso corporal.
+- **Cierre de ciclo**: al terminar el Día 5 muestra un resumen del ciclo y el siguiente día de entreno avisa que empieza uno nuevo.
+- **Ejercicios incómodos**: botón "Me incomodó" con el motivo; la próxima vez la app propone reemplazos del mismo músculo (priorizando máquinas y poleas si el problema es apoyo o dolor) y cambias con un toque, conservando el historial.
+- **Actualizaciones sin sorpresas**: la app avisa cuando hay versión nueva y se actualiza solo cuando tú lo decides.
 - **Mi gimnasio**: marca qué ejercicios/máquinas tienes disponibles.
 
 ## Stack

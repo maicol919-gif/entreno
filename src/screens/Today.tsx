@@ -2,20 +2,45 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useData } from '../store'
 import { adjustForSoreness, cardioFor, pendingDays, prescribe, toISODate, type Prescription } from '../lib/plan'
+import { alternatives } from '../lib/alternatives'
+import { readRun } from '../lib/cardioRun'
 import type { Exercise, RoutineItem, Session } from '../types'
 import ExerciseView from './ExerciseView'
 import Cardio from './Cardio'
-import { legReasons, type LegContext } from '../lib/treadmill'
+import type { LegContext } from '../lib/treadmill'
 import { useRest } from '../rest'
 
+interface CycleSummary {
+  sessions: number
+  sets: number
+  cardioMin: number
+  missing: number[]
+}
+
+interface Flag {
+  reason: string | null
+  date: string
+}
+
+const ACK_KEY = 'entreno.cycle.ack'
+
+function readAck(): string | null {
+  try {
+    return localStorage.getItem(ACK_KEY)
+  } catch {
+    return null
+  }
+}
+
 export default function Today() {
-  const { days, items, exercises, settings } = useData()
+  const { days, items, exercises, settings, reload } = useData()
   const { clear: clearRest } = useRest()
   const now = useMemo(() => new Date(), [])
   const today = toISODate(now)
   const [dayId, setDayId] = useState<string | null>(null)
   const [cycles, setCycles] = useState(0)
   const touched = useRef(false)
+  const autoOpened = useRef(false)
   const [pending, setPending] = useState<number[]>([])
   const [legCtx, setLegCtx] = useState<LegContext>({ yesterday: false, soreness: null })
   /** La semana del ciclo avanza al completar el Día 5, sin depender del calendario. */
@@ -28,6 +53,9 @@ export default function Today() {
   const [loading, setLoading] = useState(true)
   const [openCardio, setOpenCardio] = useState(false)
   const [cardioMin, setCardioMin] = useState(0)
+  const [summary, setSummary] = useState<CycleSummary | null>(null)
+  const [ack, setAck] = useState<string | null>(() => readAck())
+  const [flags, setFlags] = useState<Record<string, Flag>>({})
 
   const day = days.find((d) => d.id === dayId) ?? null
   const exById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
@@ -36,9 +64,17 @@ export default function Today() {
     const { data: s } = await supabase.from('sessions').select('*').eq('date', today).order('started_at', { ascending: false }).limit(1)
     const cur = (s?.[0] as Session | undefined) ?? null
     setSession(cur)
-    const lastDay5 = days.find((d) => d.weekday === 5)
-    if (lastDay5) {
-      const { data: c } = await supabase.from('sessions').select('id,date,sets!inner(id)').eq('day_id', lastDay5.id).eq('sets.done', true).lt('date', today)
+
+    // un cardio guiado en curso se reabre solo, aunque la página se haya recargado
+    const run = readRun()
+    if (cur && run && run.sessionId === cur.id && !autoOpened.current) {
+      autoOpened.current = true
+      setOpenCardio(true)
+    }
+
+    const day5 = days.find((d) => d.weekday === 5)
+    if (day5) {
+      const { data: c } = await supabase.from('sessions').select('id,date,sets!inner(id)').eq('day_id', day5.id).eq('sets.done', true).lt('date', today)
       setCycles((c ?? []).length)
       // días del ciclo actual (desde el último Día 5 terminado) para detectar los que quedaron pendientes
       const since = (c ?? []).map((r) => r.date as string).sort().pop()
@@ -47,6 +83,26 @@ export default function Today() {
       const { data: cyc } = await q
       const nums = (cyc ?? []).map((r) => days.find((d) => d.id === r.day_id)?.weekday).filter((n): n is number => n != null)
       setPending(pendingDays([...new Set(nums)]))
+
+      // resumen del ciclo cuando hoy se terminó el Día 5
+      if (cur && cur.status === 'done' && cur.day_id === day5.id) {
+        let sq = supabase.from('sessions').select('id,day_id,date,sets!inner(id)').eq('source', 'app').eq('sets.done', true).not('day_id', 'is', null).lte('date', today)
+        if (since) sq = sq.gt('date', since)
+        const { data: cs } = await sq
+        const ids = (cs ?? []).map((r) => r.id as string)
+        const weekdays = new Set((cs ?? []).map((r) => days.find((d) => d.id === r.day_id)?.weekday).filter((n): n is number => n != null))
+        let sets = 0
+        let cardio = 0
+        if (ids.length) {
+          const { count } = await supabase.from('sets').select('id', { count: 'exact', head: true }).in('session_id', ids).eq('done', true)
+          sets = count ?? 0
+          const { data: cl } = await supabase.from('cardio_logs').select('minutes').in('session_id', ids)
+          cardio = (cl ?? []).reduce((a, r) => a + Number(r.minutes), 0)
+        }
+        setSummary({ sessions: ids.length, sets, cardioMin: cardio, missing: [1, 2, 3, 4, 5].filter((n) => !weekdays.has(n)) })
+      } else {
+        setSummary(null)
+      }
     }
     if (!cur && !touched.current) {
       // el día que toca es el siguiente al último día entrenado, sin importar el día de la semana
@@ -101,6 +157,42 @@ export default function Today() {
     void refresh()
   }, [refresh, openItem, openCardio])
 
+  const dayItems = items.filter((i) => i.day_id === dayId && i.start_week <= week).sort((a, b) => a.position - b.position)
+  const dayExerciseKey = dayItems.map((i) => i.exercise_id).join(',')
+  const sessionId = session?.id ?? null
+
+  // ejercicios que incomodaron la última vez que se hicieron (y no se han vuelto a hacer sin marca)
+  useEffect(() => {
+    const ids = dayExerciseKey ? dayExerciseKey.split(',') : []
+    if (ids.length === 0) {
+      setFlags({})
+      return
+    }
+    void (async () => {
+      const [notes, sets] = await Promise.all([
+        supabase.from('session_exercise_notes').select('exercise_id,session_id,uncomfortable,discomfort_reason,sessions!inner(date)').in('exercise_id', ids),
+        supabase.from('sets').select('exercise_id,session_id,sessions!inner(date)').in('exercise_id', ids).eq('done', true),
+      ])
+      const dateOf = (r: { sessions: unknown }) => {
+        const s = r.sessions as { date: string } | { date: string }[]
+        return Array.isArray(s) ? s[0].date : s.date
+      }
+      const lastTrained = new Map<string, string>()
+      for (const r of (sets.data ?? []) as unknown as { exercise_id: string; session_id: string; sessions: unknown }[]) {
+        if (r.session_id === sessionId) continue
+        const d = dateOf(r)
+        if (d > (lastTrained.get(r.exercise_id) ?? '')) lastTrained.set(r.exercise_id, d)
+      }
+      const out: Record<string, Flag> = {}
+      for (const r of (notes.data ?? []) as unknown as { exercise_id: string; session_id: string; uncomfortable: boolean; discomfort_reason: string | null; sessions: unknown }[]) {
+        if (!r.uncomfortable || r.session_id === sessionId) continue
+        const d = dateOf(r)
+        if (d >= (lastTrained.get(r.exercise_id) ?? '') && d >= (out[r.exercise_id]?.date ?? '')) out[r.exercise_id] = { reason: r.discomfort_reason, date: d }
+      }
+      setFlags(out)
+    })()
+  }, [dayExerciseKey, sessionId, openItem])
+
   async function start() {
     if (!dayId) return
     const { data } = await supabase.from('sessions').insert({ date: today, day_id: dayId }).select('*').single()
@@ -127,8 +219,23 @@ export default function Today() {
     setPendingSoreness(null)
   }
 
+  function dismissSummary() {
+    if (!session) return
+    try {
+      localStorage.setItem(ACK_KEY, session.id)
+    } catch {
+      /* sin almacenamiento: reaparecerá al recargar */
+    }
+    setAck(session.id)
+  }
+
+  async function replaceExercise(item: RoutineItem, newExerciseId: string) {
+    await supabase.from('routine_items').update({ exercise_id: newExerciseId }).eq('id', item.id)
+    await reload()
+    setOpenItem(null)
+  }
+
   const cardio = day ? cardioFor(day.weekday, week) : null
-  const dayItems = items.filter((i) => i.day_id === dayId && i.start_week <= week).sort((a, b) => a.position - b.position)
 
   function rxFor(item: RoutineItem, ex: Exercise): Prescription {
     const p = prescribe(item, ex.muscle_primary, week)
@@ -137,13 +244,15 @@ export default function Today() {
   }
 
   if (openItem && session) {
-    const ex = exById.get(openItem.exercise_id)!
+    const ex = exById.get(openItem.exercise_id)
+    if (!ex) return null
     const idx = dayItems.findIndex((i) => i.id === openItem.id)
     const nextItem = idx >= 0 ? dayItems[idx + 1] ?? null : null
     const nextEx = nextItem ? exById.get(nextItem.exercise_id) : null
+    const flag = flags[ex.id] ?? null
     return (
       <ExerciseView
-        key={openItem.id}
+        key={openItem.id + ex.id}
         exercise={ex}
         sessionId={session.id}
         rx={rxFor(openItem, ex)}
@@ -158,6 +267,9 @@ export default function Today() {
             setOpenCardio(true)
           }
         }}
+        flag={flag}
+        alts={flag ? alternatives(ex, exercises, dayItems.map((i) => i.exercise_id), flag.reason) : []}
+        onReplace={(id) => void replaceExercise(openItem, id)}
       />
     )
   }
@@ -168,10 +280,33 @@ export default function Today() {
 
   if (loading) return <div className="screen"><p>Cargando…</p></div>
 
+  const nextDay1 = days.find((d) => d.weekday === 1)
+  const showSummary = !!summary && !!session && ack !== session.id
+
   return (
     <div className="screen">
       <h2>{day ? `Día ${day.weekday} · ${day.name}` : 'Descanso'}</h2>
-      <p className="muted">Semana {week} del ciclo · toca el siguiente día de tu rutina, sin importar la fecha.</p>
+      <p className="muted">Ciclo {week} · toca el siguiente día de tu rutina, sin importar la fecha.</p>
+
+      {!session && day?.weekday === 1 && cycles >= 1 && (
+        <section className="card last">
+          <h3>🎉 Hoy empieza el ciclo {week}</h3>
+          <p className="muted">Terminaste el ciclo anterior. Vuelves al Día 1 con las cargas que dejaste en el historial.</p>
+        </section>
+      )}
+
+      {showSummary && summary && (
+        <section className="card last">
+          <h3>🎉 Ciclo {week} completado</h3>
+          <p>{summary.sessions} sesiones · {summary.sets} series · {Math.round(summary.cardioMin)} min de cardio</p>
+          {summary.missing.length > 0 && <p className="muted">Días sin hacer en este ciclo: {summary.missing.join(', ')}.</p>}
+          <p className="muted">
+            El siguiente día que entrenes empieza el ciclo {week + 1}
+            {nextDay1 ? `: Día 1 · ${nextDay1.name}` : ''}.
+          </p>
+          <button className="primary" onClick={dismissSummary}>Entendido, empezar ciclo nuevo</button>
+        </section>
+      )}
 
       {pendingSoreness && (
         <section className="card warn">
@@ -233,6 +368,7 @@ export default function Today() {
                     {rx.sets} × {rx.repMin}-{rx.repMax} · RIR {rx.rirTarget}
                     {rx.label ? ` · ${rx.label}` : ''}
                     {!ex.available ? ' · no disponible' : ''}
+                    {flags[ex.id] ? ' · ⚠ te incomodó la última vez' : ''}
                   </small>
                 </span>
                 <span className="count">{done}/{rx.sets}</span>
@@ -243,7 +379,7 @@ export default function Today() {
             <button className={`exrow ${cardioMin > 0 ? 'finished' : ''}`} onClick={() => setOpenCardio(true)}>
               <span>
                 <strong>Cardio · {cardio.title}</strong>
-                <small>Al final de la fuerza · {cardio.kind === 'intervalos' ? (legReasons(legCtx).length > 0 ? 'se recomienda caminata suave (piernas cargadas)' : '4 bloques rápidos con test de habla') : 'día suave'}{cardio.optional ? ' · opcional' : ''}</small>
+                <small>Al final de la fuerza · {cardio.kind === 'intervalos' ? 'según cómo sientas las piernas' : 'día suave'}{cardio.optional ? ' · opcional' : ''}</small>
               </span>
               <span className="count">{cardioMin > 0 ? `${Math.round(cardioMin)} min ✓` : '›'}</span>
             </button>

@@ -40,7 +40,7 @@ export const GUIDES: Record<string, Guide> = {
   'Remo pecho en banco mancuernas': {
     setup: 'Tumbado boca abajo en banco inclinado con el pecho apoyado; mancuernas colgando.',
     steps: ['Lleva los codos hacia atrás y arriba, aprieta omóplatos.', 'Pausa 1 s arriba.', 'Baja controlado hasta estirar.'],
-    errors: ['Levantar el pecho del banco', 'Usar impulso', 'Codos demasiado abiertos (mueve hombro posterior en vez de dorsal)'],
+    errors: ['Levantar el pecho del banco', 'Usar impulso', 'Codos demasiado abiertos (mueve hombro posterior en vez de dorsal)', 'Pies sin apoyo que resbalan: apóyalos contra la base o pata del banco; si no hay dónde, usa remo en máquina o jalón (marca "Me incomodó" y la app te propone reemplazos)'],
   },
   'Jalón al pecho': {
     setup: 'Agarre un poco más ancho que los hombros, muslos fijos bajo el rodillo, torso ligeramente inclinado hacia atrás.',

@@ -5,6 +5,7 @@ import { fmtDate, fmtSets, loadPast } from '../lib/history'
 import { suggest, type Suggestion } from '../lib/progression'
 import type { Prescription } from '../lib/plan'
 import { GUIDES, VIDEOS, videoSearchUrl } from '../data/guides'
+import { DISCOMFORT_REASONS, reasonLabel } from '../lib/alternatives'
 import type { Exercise, PastSession, SetRow } from '../types'
 
 const LOAD_LABEL: Record<Exercise['load_type'], string> = {
@@ -26,9 +27,14 @@ interface Props {
   /** nombre del siguiente ejercicio del día (null si es el último) */
   nextName: string | null
   onNext: () => void
+  /** el ejercicio incomodó la última vez que se hizo */
+  flag: { reason: string | null; date: string } | null
+  /** reemplazos sugeridos (mismo músculo, disponibles) */
+  alts: Exercise[]
+  onReplace: (exerciseId: string) => void
 }
 
-export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onBack, nextName, onNext }: Props) {
+export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onBack, nextName, onNext, flag, alts, onReplace }: Props) {
   const [sets, setSets] = useState<SetRow[] | null>(null)
   const [past, setPast] = useState<PastSession[]>([])
   const [sugg, setSugg] = useState<Suggestion | null>(null)
@@ -40,6 +46,9 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   const [pending, setPending] = useState(0)
   const [showGuide, setShowGuide] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
+  const [uncomfortable, setUncomfortable] = useState(false)
+  const [reason, setReason] = useState<string | null>(null)
+  const [pickReason, setPickReason] = useState(false)
   const videoId = VIDEOS[exercise.name]
   const guide = GUIDES[exercise.name]
   useEffect(() => {
@@ -62,7 +71,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
         increment: exercise.min_increment_kg,
       })
       const cur = await supabase.from('sets').select('*').eq('session_id', sessionId).eq('exercise_id', exercise.id).order('set_number')
-      const nt = await supabase.from('session_exercise_notes').select('note').eq('session_id', sessionId).eq('exercise_id', exercise.id).maybeSingle()
+      const nt = await supabase.from('session_exercise_notes').select('note,uncomfortable,discomfort_reason').eq('session_id', sessionId).eq('exercise_id', exercise.id).maybeSingle()
       let rows = (cur.data ?? []) as SetRow[]
       if (rows.length === 0) {
         const key = `${sessionId}:${exercise.id}`
@@ -85,6 +94,8 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
       setSugg(s)
       setSets(rows)
       setNote(nt.data?.note ?? '')
+      setUncomfortable(!!nt.data?.uncomfortable)
+      setReason((nt.data?.discomfort_reason as string | null) ?? null)
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -153,6 +164,15 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
     await supabase.from('session_exercise_notes').upsert({ session_id: sessionId, exercise_id: exercise.id, note })
   }
 
+  async function saveFlag(on: boolean, why: string | null) {
+    setUncomfortable(on)
+    setReason(on ? why : null)
+    setPickReason(false)
+    await supabase
+      .from('session_exercise_notes')
+      .upsert({ session_id: sessionId, exercise_id: exercise.id, note, uncomfortable: on, discomfort_reason: on ? why : null })
+  }
+
   function useSuggestion() {
     if (!sugg || !sets) return
     sets.forEach((r, i) => {
@@ -174,6 +194,20 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
       </p>
       {pending > 0 && <p className="err">Sin conexión: {pending} serie(s) pendientes de guardar. Se reintenta solo.</p>}
       {exercise.fixed_note && <p className="fixed">📌 {exercise.fixed_note}</p>}
+
+      {flag && (
+        <section className="card warn">
+          <h3>La última vez te incomodó</h3>
+          <p className="muted">{reasonLabel(flag.reason)} ({flag.date}). Puedes reemplazarlo en tu rutina; el historial de este ejercicio se conserva.</p>
+          {alts.length === 0 && <p className="muted">No encuentro reemplazos disponibles del mismo músculo. Marca más ejercicios como disponibles en Gimnasio o dime qué máquinas hay.</p>}
+          {alts.map((a) => (
+            <button key={a.id} className="choice" onClick={() => onReplace(a.id)}>
+              Cambiar por <strong>{a.name}</strong> <span className="muted">· {a.equipment ?? ''}</span>
+            </button>
+          ))}
+          <p className="muted">Si lo mantienes y hoy no te incomoda, esta alerta desaparece sola.</p>
+        </section>
+      )}
 
       <section className="card guide">
         <div className="row between">
@@ -252,6 +286,27 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
             <button className="link" onClick={() => removeSet(sets[sets.length - 1])}>Quitar última</button>
           )}
         </div>
+      </section>
+
+      <section className="card">
+        {!uncomfortable && !pickReason && (
+          <button className="link" onClick={() => setPickReason(true)}>⚠ Me incomodó este ejercicio</button>
+        )}
+        {pickReason && (
+          <>
+            <h3>¿Qué pasó?</h3>
+            {DISCOMFORT_REASONS.map((r) => (
+              <button key={r.id} className="choice" onClick={() => saveFlag(true, r.id)}>{r.label}</button>
+            ))}
+            <button className="link" onClick={() => setPickReason(false)}>Cancelar</button>
+          </>
+        )}
+        {uncomfortable && (
+          <p>
+            Marcado como incómodo: <strong>{reasonLabel(reason)}</strong>. La próxima vez te propongo reemplazos.{' '}
+            <button className="link" onClick={() => saveFlag(false, null)}>Quitar marca</button>
+          </p>
+        )}
       </section>
 
       <button

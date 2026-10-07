@@ -1,8 +1,10 @@
 /**
- * Protocolo de cinta (capacidad respiratoria):
- * - Intervalos: 4 bloques rápidos de 2 min (9,5 / 9,5 / 10,0 / 10,0 km/h), inclinación 1 %, recuperación a 5,5 km/h.
- * - Calentamiento y enfriamiento a 0 %.
- * - Se cambia UNA sola variable por sesión. Siguiente paso: recuperación 45 s -> 30 s con las mismas velocidades.
+ * Protocolo de cinta (capacidad respiratoria), 20 min, todo a 1 % salvo el último minuto (0 %):
+ * - Calentamiento de 5 min subiendo 1 km/h por minuto (5 -> 9).
+ * - 4 bloques rápidos: 2 min a 9,5 · 2 min a 9,5 · 2 min a 10,0 · 3 min a 10,0.
+ * - Recuperaciones a 5,5 km/h (60 s) antes de cada bloque y tras el último.
+ * - Enfriamiento: 1 min a 4,5 km/h al 0 %.
+ * - Se cambia UNA sola variable por sesión (recuperación o velocidad del último bloque).
  * - Test de habla al final de la última recuperación.
  */
 
@@ -17,14 +19,14 @@ export interface Segment {
 }
 
 export interface IntervalConfig {
-  /** 'basic' = 3 min (5,5/6,5/7,5); 'extended' = calentamiento ampliado con puente a 8,5 */
-  warmup: 'basic' | 'extended'
+  /** segundos de cada recuperación (60 por defecto; baja 15 s cuando el test de habla sale "entera") */
   recoverySec: number
   /** velocidad del 4.º bloque (10,0 por defecto; baja 0,5 si el test de habla no pasa de la mitad) */
   lastBlockSpeed: number
 }
 
-export const DEFAULT_CONFIG: IntervalConfig = { warmup: 'extended', recoverySec: 45, lastBlockSpeed: 10.0 }
+export const DEFAULT_CONFIG: IntervalConfig = { recoverySec: 60, lastBlockSpeed: 10.0 }
+export const MIN_RECOVERY_SEC = 30
 
 export const SPEECH_PHRASE = 'Hoy es viernes y estoy terminando el último bloque.'
 
@@ -33,22 +35,19 @@ const REC_SPEED = 5.5
 export function intervalSession(cfg: IntervalConfig): Segment[] {
   const seg = (label: string, sec: number, speed: number, incline: number, kind: SegKind): Segment => ({ label, sec, speed, incline, kind })
   const out: Segment[] = []
-  if (cfg.warmup === 'basic') {
-    out.push(seg('Calentamiento', 60, 5.5, 0, 'warm'), seg('Calentamiento', 60, 6.5, 0, 'warm'), seg('Calentamiento', 60, 7.5, 0, 'warm'))
-  } else {
-    out.push(
-      seg('Calentamiento', 90, 5.5, 0, 'warm'),
-      seg('Calentamiento', 90, 7.0, 0, 'warm'),
-      seg('Puente', 60, 8.5, 0, 'warm'),
-      seg('Recuperación antes del bloque 1', 30, 5.5, 1, 'rec'),
-    )
-  }
-  const speeds = [9.5, 9.5, 10.0, cfg.lastBlockSpeed]
-  speeds.forEach((v, i) => {
-    out.push(seg(`Bloque ${i + 1}`, 120, v, 1, 'fast'))
-    if (i < speeds.length - 1) out.push(seg(`Recuperación ${i + 1}`, cfg.recoverySec, REC_SPEED, 1, 'rec'))
+  for (const speed of [5, 6, 7, 8, 9]) out.push(seg('Calentamiento', 60, speed, 1, 'warm'))
+  const blocks: [number, number][] = [
+    [120, 9.5],
+    [120, 9.5],
+    [120, 10.0],
+    [180, cfg.lastBlockSpeed],
+  ]
+  blocks.forEach(([sec, speed], i) => {
+    out.push(seg(i === 0 ? 'Recuperación antes del bloque 1' : `Recuperación ${i}`, cfg.recoverySec, REC_SPEED, 1, 'rec'))
+    out.push(seg(`Bloque ${i + 1}`, sec, speed, 1, 'fast'))
   })
-  out.push(seg('Enfriamiento', 60, 5.0, 0, 'cool'), seg('Enfriamiento', 45, 4.5, 0, 'cool'))
+  out.push(seg('Última recuperación (test de habla)', cfg.recoverySec, REC_SPEED, 1, 'rec'))
+  out.push(seg('Enfriamiento', 60, 4.5, 0, 'cool'))
   return out
 }
 
@@ -77,6 +76,7 @@ export function locate(segs: Segment[], elapsed: number): { index: number; left:
 }
 
 export type SpeechTest = 'entera' | 'dos' | 'mitad'
+export type LegsFeel = 'frescas' | 'normales' | 'cargadas'
 
 export interface LastInterval {
   protocol: Partial<IntervalConfig> | null
@@ -91,31 +91,22 @@ export interface NextInterval {
   suggestSoft: boolean
 }
 
-/**
- * Decide la configuración de la próxima sesión de intervalos. Una sola variable por sesión:
- * 1) calentamiento ampliado (ajuste acordado) y después 2) recuperación 45 s -> 30 s.
- */
+/** Decide la configuración de la próxima sesión de intervalos. Una sola variable por sesión. */
 export function nextInterval(last: LastInterval | null): NextInterval {
   if (!last) {
     return {
       config: DEFAULT_CONFIG,
-      message: 'Primera sesión con el calentamiento ampliado (ajuste acordado). Recuperación 45 s y velocidades iguales: no cambies nada más.',
+      message:
+        'Tu protocolo de 20 min: calentamiento 5→9 km/h, bloques de 2/2/2/3 min a 9,5-10 km/h y recuperaciones de 60 s a 5,5 km/h. Al final, test de habla.',
       suggestSoft: false,
     }
   }
-  const prev: IntervalConfig = { ...DEFAULT_CONFIG, warmup: 'basic', ...last.protocol }
+  const prev: IntervalConfig = { ...DEFAULT_CONFIG, ...last.protocol }
   if (last.discomfort) {
     return {
       config: prev,
       message: 'La última sesión dejó molestia (tobillo/tendón). Hoy mejor caminata suave; si haces intervalos, mismos parámetros que la vez pasada.',
       suggestSoft: true,
-    }
-  }
-  if (prev.warmup === 'basic') {
-    return {
-      config: { ...prev, warmup: 'extended' },
-      message: 'Aplicar el calentamiento ampliado (el primer bloque era el que más costaba). Es la única variable que cambia hoy.',
-      suggestSoft: false,
     }
   }
   if (last.speech_test === 'mitad') {
@@ -126,17 +117,18 @@ export function nextInterval(last: LastInterval | null): NextInterval {
       suggestSoft: false,
     }
   }
-  if (last.speech_test === 'entera' && prev.recoverySec > 30) {
+  if (last.speech_test === 'entera' && prev.recoverySec > MIN_RECOVERY_SEC) {
+    const r = Math.max(MIN_RECOVERY_SEC, prev.recoverySec - 15)
     return {
-      config: { ...prev, recoverySec: 30 },
-      message: 'Frase entera de un tirón: recorta la recuperación a 30 s. Mismas velocidades; NO subas velocidad a la vez.',
+      config: { ...prev, recoverySec: r },
+      message: `Frase entera de un tirón: recorta la recuperación a ${r} s. Mismas velocidades; NO subas velocidad a la vez.`,
       suggestSoft: false,
     }
   }
   if (last.speech_test === 'entera') {
     return {
       config: prev,
-      message: 'Frase entera con recuperación de 30 s: repite la sesión. Más adelante decidimos la siguiente variable (una sola).',
+      message: `Frase entera con recuperación de ${prev.recoverySec} s: repite la sesión. Más adelante decidimos la siguiente variable (una sola).`,
       suggestSoft: false,
     }
   }
@@ -145,6 +137,16 @@ export function nextInterval(last: LastInterval | null): NextInterval {
     message: last.speech_test === 'dos' ? 'Frase partida en dos: nivel correcto, repite.' : 'Repite la misma sesión y haz el test de habla al final.',
     suggestSoft: false,
   }
+}
+
+/**
+ * Tipo de cardio según cómo sientes las piernas hoy.
+ * - Día de intervalos: piernas cargadas -> caminata suave con inclinación reducida; frescas o normales -> intervalos.
+ * - Día suave: la caminata es la misma, pero con piernas cargadas se reduce inclinación y velocidad.
+ */
+export function cardioChoice(planKind: 'intervalos' | 'recuperacion', feel: LegsFeel): { mode: 'intervalos' | 'recuperacion'; reduced: boolean } {
+  if (feel === 'cargadas') return { mode: 'recuperacion', reduced: true }
+  return { mode: planKind, reduced: false }
 }
 
 export interface PastCardio {
@@ -161,7 +163,7 @@ function addDays(iso: string, delta: number): string {
   return `${y}-${m}-${day}`
 }
 
-/** Advertencias de tus propias reglas: un día entre intervalos y no más de 3 por semana. */
+/** Advertencias de las reglas de descanso: un día entre intervalos y no más de 3 en 7 días. */
 export function intervalWarnings(logs: PastCardio[], today: string, sinceISO: string): string[] {
   const out: string[] = []
   const intervals = logs.filter((l) => l.kind === 'intervalos').map((l) => l.date)
@@ -181,10 +183,19 @@ export interface LegContext {
   soreness: number | null
 }
 
-/** Motivos para pasar de intervalos a caminata suave (o reducir la inclinación) por la pierna. */
-export function legReasons(ctx: LegContext): string[] {
+/** Datos informativos para ayudarte a responder "¿cómo sientes las piernas hoy?" (no deciden nada solos). */
+export function legHints(ctx: LegContext): string[] {
   const out: string[] = []
-  if (ctx.yesterday) out.push('Ayer fue día de pierna: los intervalos a 9,5-10 km/h cargan justo esos músculos.')
-  if (ctx.soreness != null && ctx.soreness >= 6) out.push(`Tus agujetas de pierna están en ${ctx.soreness}/10.`)
+  if (ctx.yesterday) out.push('Ayer entrenaste pierna.')
+  if (ctx.soreness != null) out.push(`Anotaste agujetas de ${ctx.soreness}/10 en tu última sesión de pierna (hace menos de 3 días).`)
   return out
 }
+
+/** Etiquetas de esfuerzo con el valor que se guarda (escala 1-10 de esfuerzo percibido). */
+export const EFFORT_LEVELS: { label: string; hint: string; value: number }[] = [
+  { label: 'Muy fácil', hint: 'casi no lo noté', value: 2 },
+  { label: 'Fácil', hint: 'podía hablar sin problema', value: 3 },
+  { label: 'Moderado', hint: 'respiración alta pero controlada', value: 5 },
+  { label: 'Duro', hint: 'frases cortas, me costó', value: 7 },
+  { label: 'Máximo', hint: 'al límite', value: 9 },
+]

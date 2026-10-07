@@ -95,3 +95,5 @@ button.next { width: 100%; margin: 4px 0 12px; padding: 16px; font-weight: 700; 
 .segtable { width: 100%; border-collapse: collapse; font-size: .85rem; margin: 6px 0 12px; }
 .segtable td { padding: 4px 6px; border-bottom: 1px solid var(--line); }
 .segtable tr.fast td { color: #ff9c9c; font-weight: 700; }
+.updatebar { position: fixed; top: 0; left: 0; right: 0; z-index: 30; display: flex; gap: 12px; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--warn); color: #2b1d00; font-size: .9rem; }
+.updatebar button { background: rgba(0,0,0,.15); color: #2b1d00; border: 0; font-weight: 700; padding: 8px 12px; }

@@ -2,57 +2,34 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmtDate } from '../lib/history'
 import { toISODate, type CardioPlan } from '../lib/plan'
+import { readRun, writeRun, type Run } from '../lib/cardioRun'
 import {
+  EFFORT_LEVELS,
   SPEECH_PHRASE,
+  cardioChoice,
   intervalSession,
   intervalWarnings,
-  legReasons,
+  legHints,
   locate,
   nextInterval,
   recoveryWalk,
   totalSeconds,
-  type IntervalConfig,
   type LastInterval,
   type LegContext,
+  type LegsFeel,
   type PastCardio,
   type Segment,
   type SpeechTest,
 } from '../lib/treadmill'
 import { beep, useRest } from '../rest'
 
-const KEY = 'entreno.cardio.run'
 type Mode = 'intervalos' | 'recuperacion'
-
-interface Run {
-  start: number
-  mode: Mode
-  cfg: IntervalConfig
-  reduced: boolean
-}
 
 interface LogRow extends PastCardio {
   minutes: number
   speech_test: SpeechTest | null
   discomfort: boolean
-  protocol: Partial<IntervalConfig> | null
-}
-
-function readRun(): Run | null {
-  try {
-    const r = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Run | null
-    return r && Date.now() - r.start < 3 * 3600 * 1000 ? r : null
-  } catch {
-    return null
-  }
-}
-
-function writeRun(r: Run | null) {
-  try {
-    if (r) localStorage.setItem(KEY, JSON.stringify(r))
-    else localStorage.removeItem(KEY)
-  } catch {
-    /* el cronómetro sigue en memoria */
-  }
+  protocol: Partial<LastInterval['protocol']> | null
 }
 
 function sevenDaysAgo(): string {
@@ -60,6 +37,12 @@ function sevenDaysAgo(): string {
 }
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+
+const FEEL_OPTIONS: { value: LegsFeel; label: string; hint: string }[] = [
+  { value: 'frescas', label: 'Frescas', hint: 'sin molestia, con ganas' },
+  { value: 'normales', label: 'Normales', hint: 'algo de cansancio, nada raro' },
+  { value: 'cargadas', label: 'Cargadas', hint: 'agujetas o pesadez' },
+]
 
 interface Props {
   plan: CardioPlan
@@ -72,17 +55,19 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   const { clear: clearRest } = useRest()
   const saved = useRef(readRun())
   const [logs, setLogs] = useState<LogRow[] | null>(null)
+  const [feel, setFeel] = useState<LegsFeel | null>(saved.current?.feel ?? null)
   const [mode, setMode] = useState<Mode>(saved.current?.mode ?? plan.kind)
-  const [override, setOverride] = useState(false)
+  const [reducedChoice, setReducedChoice] = useState<boolean | null>(null)
   const [run, setRun] = useState<Run | null>(saved.current)
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<'plan' | 'form'>('plan')
   const [stoppedAt, setStoppedAt] = useState<number | null>(null)
   const [speech, setSpeech] = useState<SpeechTest | null>(null)
-  const [rpe, setRpe] = useState('')
+  const [effort, setEffort] = useState<number | null>(null)
   const [discomfort, setDiscomfort] = useState(false)
   const [note, setNote] = useState('')
   const [err, setErr] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
   const [showTable, setShowTable] = useState(false)
   const lastIndex = useRef(-1)
@@ -100,22 +85,21 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
 
   const lastInterval: LastInterval | null = useMemo(() => {
     const l = logs?.find((x) => x.kind === 'intervalos')
-    return l ? { protocol: l.protocol, speech_test: l.speech_test, discomfort: l.discomfort } : null
+    return l ? { protocol: l.protocol ?? null, speech_test: l.speech_test, discomfort: l.discomfort } : null
   }, [logs])
 
   const next = useMemo(() => nextInterval(lastInterval), [lastInterval])
-  const legWhy = useMemo(() => legReasons(legCtx), [legCtx])
-  const warnings = useMemo(() => [...legWhy, ...intervalWarnings(logs ?? [], today, sevenDaysAgo())], [legWhy, logs, today])
-  const recommendSoft = plan.kind === 'intervalos' && (warnings.length > 0 || next.suggestSoft)
-  const [reducedChoice, setReducedChoice] = useState<boolean | null>(null)
-  const reduced = run?.reduced ?? reducedChoice ?? legWhy.length > 0
+  const warnings = useMemo(() => intervalWarnings(logs ?? [], today, sevenDaysAgo()), [logs, today])
+  const hints = useMemo(() => legHints(legCtx), [legCtx])
 
-  // si hay una advertencia, el modo recomendado cambia a caminata suave (salvo que elijas lo contrario)
+  // al elegir cómo están las piernas se decide el tipo de cardio (aún puedes cambiarlo a mano)
+  const choice = feel ? cardioChoice(plan.kind, feel) : null
   useEffect(() => {
-    if (logs && !run && !override && recommendSoft) setMode('recuperacion')
-  }, [logs, run, override, recommendSoft])
+    if (!run && choice) setMode(warnings.length > 0 && choice.mode === 'intervalos' ? 'recuperacion' : choice.mode)
+  }, [run, choice, warnings.length])
 
-  const cfg: IntervalConfig = run?.cfg ?? next.config
+  const reduced = run?.reduced ?? reducedChoice ?? choice?.reduced ?? false
+  const cfg = run?.cfg ?? next.config
   const segs: Segment[] = useMemo(() => (mode === 'intervalos' ? intervalSession(cfg) : recoveryWalk(reduced)), [mode, cfg, reduced])
   const total = totalSeconds(segs)
 
@@ -129,7 +113,7 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
     return () => window.clearInterval(t)
   }, [run, finished])
 
-  // aviso al cambiar de segmento
+  // aviso al cambiar de tramo
   useEffect(() => {
     if (!run) return
     const idx = pos ? pos.index : segs.length
@@ -153,14 +137,16 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
     }
   }, [run, finished])
 
+  // el cardio termina cuando el reloj lo dice, esté o no abierta la pantalla
   useEffect(() => {
     if (finished) setPhase('form')
   }, [finished])
 
   function begin() {
+    if (!feel) return
     clearRest()
     lastIndex.current = -1
-    const r: Run = { start: Date.now(), mode, cfg, reduced }
+    const r: Run = { start: Date.now(), mode, cfg, reduced, sessionId, feel }
     setNow(r.start)
     setRun(r)
     writeRun(r)
@@ -182,23 +168,27 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   const completed = run != null && (finished || workedSec >= total)
 
   async function save() {
-    if (!run) return
+    if (!run || saving || done) return
     if (mode === 'intervalos' && completed && !speech) {
       setErr('Haz el test de habla y elige el resultado.')
       return
     }
+    setSaving(true)
+    setErr(null)
     const { error } = await supabase.from('cardio_logs').insert({
-      session_id: sessionId,
-      date: today,
+      session_id: run.sessionId,
+      date: toISODate(new Date(run.start)),
       kind: mode,
       machine: 'Trotadora',
       minutes: Math.max(1, Math.round((workedSec / 60) * 10) / 10),
-      rpe: rpe ? Number(rpe) : null,
+      rpe: effort,
       speech_test: mode === 'intervalos' && completed ? speech : null,
       discomfort,
       protocol: mode === 'intervalos' ? run.cfg : null,
+      legs_feel: run.feel,
       note: note || null,
     })
+    setSaving(false)
     if (error) {
       setErr(error.message)
       return
@@ -210,7 +200,7 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
 
   const lastSame = logs?.find((l) => l.kind === mode)
 
-  // ───────── pantalla de ejecución guiada ─────────
+  // ───────── ejecución guiada ─────────
   if (run && phase === 'plan' && pos) {
     const seg = segs[pos.index]
     const upcoming = segs[pos.index + 1]
@@ -237,7 +227,7 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   if (run && phase === 'form') {
     return (
       <div className="screen">
-        <h2>{completed ? 'Sesión completa' : 'Sesión parcial'}</h2>
+        <h2>{completed ? 'Cardio completo' : 'Cardio parcial'}</h2>
         <p className="muted">Tiempo: {fmt(workedSec)}</p>
 
         {mode === 'intervalos' && completed && (
@@ -257,93 +247,124 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
         )}
 
         <section className="card">
-          <label>Esfuerzo percibido (1-10)
-            <select value={rpe} onChange={(e) => setRpe(e.target.value)}>
-              <option value="">—</option>
-              {Array.from({ length: 10 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}</option>)}
-            </select>
-          </label>
+          <h3>¿Qué tan duro fue?</h3>
+          <p className="muted">Es el esfuerzo que sentiste, no cómo quedaron las piernas.</p>
+          {EFFORT_LEVELS.map((e) => (
+            <button key={e.value} className={`choice ${effort === e.value ? 'on' : ''}`} onClick={() => setEffort(e.value)}>
+              <strong>{e.label}</strong> <span className="muted">· {e.hint}</span>
+            </button>
+          ))}
+        </section>
+
+        <section className="card">
           <label className="check-row">
             <input type="checkbox" checked={discomfort} onChange={(e) => setDiscomfort(e.target.checked)} />
             <span>Molestia en tobillo / tendón / articulaciones</span>
           </label>
           <label>Nota<textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></label>
           {err && <p className="err">{err}</p>}
-          <button className="primary" onClick={save} disabled={done}>{done ? 'Guardado ✓' : 'Guardar cardio'}</button>
-          <button className="link" onClick={discard}>Descartar</button>
+          <button className="primary" onClick={save} disabled={saving || done}>{done ? 'Guardado ✓' : saving ? 'Guardando…' : 'Guardar cardio'}</button>
+          <button className="link" onClick={discard} disabled={saving || done}>Descartar</button>
         </section>
       </div>
     )
   }
 
-  // ───────── pantalla del plan ─────────
-  const minutes = Math.round(total / 60 * 10) / 10
+  // ───────── plan del día ─────────
+  const minutes = Math.round((total / 60) * 10) / 10
   let t = 0
   return (
     <div className="screen">
       <button className="link back" onClick={onBack}>← Sesión</button>
       <h2>Cardio en cinta</h2>
-      <p>{mode === 'intervalos' ? 'Intervalos' : 'Caminata suave en cuesta'} · {minutes} min{plan.optional && mode === 'recuperacion' ? ' · opcional' : ''}</p>
 
-      {logs === null && <p className="muted">Cargando…</p>}
+      {!feel && (
+        <section className="card">
+          <h3>¿Cómo sientes las piernas hoy?</h3>
+          {hints.map((h) => <p key={h} className="muted">{h}</p>)}
+          {FEEL_OPTIONS.map((o) => (
+            <button key={o.value} className="choice" onClick={() => setFeel(o.value)}>
+              <strong>{o.label}</strong> <span className="muted">· {o.hint}</span>
+            </button>
+          ))}
+        </section>
+      )}
 
-      {warnings.map((w) => <p key={w} className="fixed">⚠ {w}</p>)}
-      {mode === 'intervalos' && <p className="fixed">📌 {next.message}</p>}
-      {mode === 'recuperacion' && (
+      {feel && (
         <>
-          <p className="muted">Frases completas todo el rato.</p>
-          <label className="check-row">
-            <input type="checkbox" checked={reduced} onChange={(e) => setReducedChoice(e.target.checked)} />
-            <span>Piernas cargadas: inclinación máx. 2 % y velocidad máx. 5,0 km/h</span>
-          </label>
+          <p>
+            {mode === 'intervalos' ? 'Intervalos' : 'Caminata suave en cuesta'} · {minutes} min
+            {plan.optional && mode === 'recuperacion' ? ' · opcional' : ''}
+          </p>
+          <p className="muted">
+            Piernas {feel}.{' '}
+            <button className="link" onClick={() => setFeel(null)}>Cambiar</button>
+          </p>
+
+          {logs === null && <p className="muted">Cargando…</p>}
+          {warnings.map((w) => <p key={w} className="fixed">⚠ {w}</p>)}
+          {mode === 'intervalos' && <p className="fixed">📌 {next.message}</p>}
+          {mode === 'recuperacion' && (
+            <>
+              <p className="muted">Frases completas todo el rato.</p>
+              <label className="check-row">
+                <input type="checkbox" checked={reduced} onChange={(e) => setReducedChoice(e.target.checked)} />
+                <span>Piernas cargadas: inclinación máx. 2 % y velocidad máx. 5,0 km/h</span>
+              </label>
+            </>
+          )}
+
+          {plan.kind === 'intervalos' && (
+            <div className="row">
+              {mode === 'intervalos' ? (
+                <button className="link" onClick={() => setMode('recuperacion')}>Prefiero caminata suave hoy</button>
+              ) : (
+                <button className="link" onClick={() => setMode('intervalos')}>Hacer intervalos igualmente</button>
+              )}
+            </div>
+          )}
+
+          <section className="card last">
+            <h3>Última vez</h3>
+            {lastSame ? (
+              <p>
+                {fmtDate(lastSame.date)}: {lastSame.minutes} min
+                {lastSame.speech_test ? ` · habla: ${lastSame.speech_test === 'entera' ? 'entera' : lastSame.speech_test === 'dos' ? 'en dos' : 'no pasó de la mitad'}` : ''}
+                {lastSame.discomfort ? ' · con molestia' : ''}
+              </p>
+            ) : (
+              <p className="muted">Primera vez registrada en la app.</p>
+            )}
+          </section>
+
+          <section className="card">
+            <div className="row between">
+              <h3>Tramos</h3>
+              <button className="link" onClick={() => setShowTable((v) => !v)}>{showTable ? 'Ocultar' : 'Ver'}</button>
+            </div>
+            {showTable && (
+              <table className="segtable">
+                <tbody>
+                  {segs.map((s, i) => {
+                    const from = t
+                    t += s.sec
+                    return (
+                      <tr key={i} className={s.kind}>
+                        <td>{fmt(from)}–{fmt(t)}</td>
+                        <td>{s.speed.toFixed(1)} km/h</td>
+                        <td>{s.incline} %</td>
+                        <td>{s.label}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+            <button className="primary" onClick={begin} disabled={logs === null}>Empezar guiado</button>
+            <p className="muted center-text">Vibra y suena en cada cambio de tramo. Mantiene la pantalla encendida. Si la página se recarga, el cardio sigue contando y se reabre solo.</p>
+          </section>
         </>
       )}
-
-      {plan.kind === 'intervalos' && (
-        <div className="row">
-          {mode === 'intervalos' ? (
-            <button className="link" onClick={() => { setOverride(true); setMode('recuperacion') }}>Prefiero caminata suave hoy</button>
-          ) : (
-            <button className="link" onClick={() => { setOverride(true); setMode('intervalos') }}>Hacer intervalos igualmente</button>
-          )}
-        </div>
-      )}
-
-      <section className="card last">
-        <h3>Última vez</h3>
-        {lastSame ? (
-          <p>{fmtDate(lastSame.date)}: {lastSame.minutes} min{lastSame.speech_test ? ` · habla: ${lastSame.speech_test === 'entera' ? 'entera' : lastSame.speech_test === 'dos' ? 'en dos' : 'no pasó de la mitad'}` : ''}{lastSame.discomfort ? ' · con molestia' : ''}</p>
-        ) : (
-          <p className="muted">Primera vez registrada en la app.</p>
-        )}
-      </section>
-
-      <section className="card">
-        <div className="row between">
-          <h3>Tramos</h3>
-          <button className="link" onClick={() => setShowTable((v) => !v)}>{showTable ? 'Ocultar' : 'Ver'}</button>
-        </div>
-        {showTable && (
-          <table className="segtable">
-            <tbody>
-              {segs.map((s, i) => {
-                const from = t
-                t += s.sec
-                return (
-                  <tr key={i} className={s.kind}>
-                    <td>{fmt(from)}–{fmt(t)}</td>
-                    <td>{s.speed.toFixed(1)} km/h</td>
-                    <td>{s.incline} %</td>
-                    <td>{s.label}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        )}
-        <button className="primary" onClick={begin} disabled={logs === null}>Empezar guiado</button>
-        <p className="muted center-text">Vibra y suena en cada cambio de tramo. Mantiene la pantalla encendida.</p>
-      </section>
     </div>
   )
 }

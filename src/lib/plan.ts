@@ -94,9 +94,9 @@ export function cardioFor(weekday: number, week: number): CardioPlan | null {
   if (isDeload(week) || weekday === 2 || weekday === 4) return soft
   return {
     kind: 'intervalos',
-    minutes: 15,
-    title: 'Intervalos en cinta',
-    detail: '4 bloques de 2 min rápidos (9,5-10,0 km/h, 1 %) con recuperación a 5,5 km/h. Test de habla al final.',
+    minutes: 20,
+    title: 'Intervalos en cinta 20 min',
+    detail: 'Calentamiento 5→9 km/h, 4 bloques de 2/2/2/3 min a 9,5-10 km/h (1 %) con recuperación a 5,5 km/h. Test de habla al final.',
     optional: false,
   }
 }

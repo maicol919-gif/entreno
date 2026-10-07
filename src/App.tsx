@@ -9,6 +9,7 @@ import Gym from './screens/Gym'
 import SettingsTab from './screens/Settings'
 import Progress from './screens/Progress'
 import { RestBar, RestProvider } from './rest'
+import UpdateBanner from './UpdateBanner'
 
 type Tab = 'today' | 'progress' | 'history' | 'gym' | 'settings'
 
@@ -36,6 +37,7 @@ export default function App() {
   return (
     <DataProvider>
       <RestProvider>
+      <UpdateBanner />
       <main>
         {tab === 'today' && <Today />}
         {tab === 'progress' && <Progress />}
