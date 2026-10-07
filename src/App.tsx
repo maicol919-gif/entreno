@@ -32,7 +32,12 @@ export default function App() {
   }, [])
 
   if (auth === undefined) return <div className="center"><p>Cargando…</p></div>
-  if (!auth) return <Login />
+  if (!auth) return (
+    <>
+      <Login />
+      <UpdateBanner />
+    </>
+  )
 
   return (
     <DataProvider>
