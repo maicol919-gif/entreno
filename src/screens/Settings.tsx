@@ -73,6 +73,7 @@ export default function SettingsTab() {
 
       <section className="card">
         <h3>Versión de la app</h3>
+        <p>Versión <strong>{__VERSION__}</strong></p>
         <p className="muted">Compilada: {__BUILD__}</p>
         <button onClick={forceUpdate}>Buscar actualización</button>
       </section>
