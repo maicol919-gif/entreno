@@ -24,6 +24,16 @@ interface Flag {
 
 const ACK_KEY = 'entreno.cycle.ack'
 
+/** Agujetas de pierna con palabras: más alto = más dolor (no cómo de bien te sentiste). */
+const SORENESS_LEVELS: { value: number; label: string; hint: string }[] = [
+  { value: 0, label: 'Nada', hint: 'las piernas se sienten normales' },
+  { value: 2, label: 'Leves', hint: 'las noto un poco al caminar o bajar escaleras' },
+  { value: 4, label: 'Moderadas', hint: 'molestan, pero camino normal' },
+  { value: 6, label: 'Fuertes', hint: 'me cuesta bajar escaleras o sentarme' },
+  { value: 8, label: 'Muy fuertes', hint: 'camino con dificultad' },
+  { value: 10, label: 'No puedo caminar', hint: 'el dolor me limita casi todo' },
+]
+
 function readAck(): string | null {
   try {
     return localStorage.getItem(ACK_KEY)
@@ -310,11 +320,13 @@ export default function Today() {
 
       {pendingSoreness && (
         <section className="card warn">
-          <h3>¿Cómo están tus piernas?</h3>
-          <p className="muted">Sesión del {pendingSoreness.date}. 0 = nada, 10 = no puedo caminar.</p>
-          <div className="scale">
-            {Array.from({ length: 11 }, (_, i) => <button key={i} onClick={() => saveSoreness(i)}>{i}</button>)}
-          </div>
+          <h3>¿Qué tan adoloridas están tus piernas?</h3>
+          <p className="muted">Sesión del {pendingSoreness.date}. Mide el dolor muscular (agujetas): más alto = más dolor, no cómo de bien te sentiste.</p>
+          {SORENESS_LEVELS.map((l) => (
+            <button key={l.value} className="choice" onClick={() => saveSoreness(l.value)}>
+              <strong>{l.label}</strong> <span className="muted">· {l.hint}</span>
+            </button>
+          ))}
         </section>
       )}
 

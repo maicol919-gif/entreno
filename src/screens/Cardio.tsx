@@ -71,6 +71,7 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   const [done, setDone] = useState(false)
   const [showTable, setShowTable] = useState(false)
   const lastIndex = useRef(-1)
+  const savingRef = useRef(false)
 
   const today = toISODate(new Date())
 
@@ -168,11 +169,12 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   const completed = run != null && (finished || workedSec >= total)
 
   async function save() {
-    if (!run || saving || done) return
+    if (!run || savingRef.current || done) return
     if (mode === 'intervalos' && completed && !speech) {
       setErr('Haz el test de habla y elige el resultado.')
       return
     }
+    savingRef.current = true
     setSaving(true)
     setErr(null)
     const { error } = await supabase.from('cardio_logs').insert({
@@ -189,7 +191,9 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
       note: note || null,
     })
     setSaving(false)
-    if (error) {
+    // 23505 = ya estaba guardado (doble toque): se trata como guardado
+    if (error && error.code !== '23505') {
+      savingRef.current = false
       setErr(error.message)
       return
     }

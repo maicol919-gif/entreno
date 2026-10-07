@@ -3,6 +3,12 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 2.1 · 2026-10-08
+- Fotos del gimnasio: sube fotos privadas (con nota y máquinas que reconoces) desde la pestaña Gimnasio y copia un enlace temporal para compartirlas.
+- Cuando hay una versión nueva, la app pide actualizar antes de continuar (sin recargarse sola).
+- Agujetas con palabras ("Nada" a "No puedo caminar"), para no confundir dolor con bienestar.
+- El cardio ya no se guarda dos veces con un doble toque.
+
 ## 2.0 · 2026-10-07
 - Cardio: pregunta "¿cómo sientes las piernas hoy?" antes de empezar y propone intervalos o caminata suave.
 - Protocolo de intervalos de 20 min como base y escala de esfuerzo con palabras.

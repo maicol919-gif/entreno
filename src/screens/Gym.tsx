@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useData } from '../store'
+import GymPhotos from './GymPhotos'
 
 export default function Gym() {
   const { exercises, reload } = useData()
@@ -18,6 +19,7 @@ export default function Gym() {
   return (
     <div className="screen">
       <h2>Mi gimnasio (Darko)</h2>
+      <GymPhotos />
       <p className="muted">Marca lo que SÍ hay. Lo que desmarques aparece como "no disponible" en tu rutina.</p>
       {[...byEquip.entries()].map(([equip, list]) => (
         <section key={equip} className="card">

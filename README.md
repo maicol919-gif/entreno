@@ -15,8 +15,8 @@ App web instalable (PWA) para llevar un entrenamiento de fuerza con progresión 
 - **Progreso**: series de los últimos 7 días por músculo contra su rango objetivo, ejercicios que suben o están estancados, cardio y peso corporal.
 - **Cierre de ciclo**: al terminar el Día 5 muestra un resumen del ciclo y el siguiente día de entreno avisa que empieza uno nuevo.
 - **Ejercicios incómodos**: botón "Me incomodó" con el motivo; la próxima vez la app propone reemplazos del mismo músculo (priorizando máquinas y poleas si el problema es apoyo o dolor) y cambias con un toque, conservando el historial.
-- **Actualizaciones sin sorpresas**: la app avisa cuando hay versión nueva y se actualiza solo cuando tú lo decides.
-- **Mi gimnasio**: marca qué ejercicios/máquinas tienes disponibles.
+- **Actualizaciones**: cuando hay una versión nueva, la app pide actualizar antes de continuar; no se recarga sola, y el cardio o descanso en curso se conservan.
+- **Mi gimnasio**: marca qué ejercicios/máquinas tienes disponibles y sube fotos privadas de las máquinas (se guardan en Supabase Storage).
 
 ## Stack
 

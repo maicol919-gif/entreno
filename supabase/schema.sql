@@ -124,3 +124,36 @@ begin
     execute format('create policy "own rows" on public.%I for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()))', t);
   end loop;
 end $$;
+
+-- Evita guardar dos veces el mismo cardio en una sesión (doble toque).
+create unique index if not exists cardio_logs_no_double_save on public.cardio_logs (session_id, kind, minutes) where session_id is not null;
+
+-- Notas por ejercicio y sesión: marca de "me incomodó" y motivo.
+alter table public.session_exercise_notes add column if not exists uncomfortable boolean not null default false;
+alter table public.session_exercise_notes add column if not exists discomfort_reason text;
+alter table public.cardio_logs add column if not exists legs_feel text check (legs_feel in ('frescas','normales','cargadas'));
+
+-- Fotos del gimnasio (privadas por usuario).
+create table public.gym_photos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  path text not null,
+  note text,
+  tags text[] not null default '{}',
+  created_at timestamptz not null default now()
+);
+create index on public.gym_photos (user_id, created_at desc);
+alter table public.gym_photos enable row level security;
+create policy "own rows" on public.gym_photos for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('gym-photos', 'gym-photos', false, 5242880, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+
+create policy "gym photos select own" on storage.objects for select to authenticated
+  using (bucket_id = 'gym-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "gym photos insert own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'gym-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "gym photos delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'gym-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
