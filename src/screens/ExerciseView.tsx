@@ -272,9 +272,9 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
             <span>{r.set_number}</span>
             <input inputMode="numeric" value={r.reps ?? ''} onChange={(e) => patch(r.id, { reps: e.target.value === '' ? null : Number(e.target.value) })} onBlur={() => save(sets!.find((x) => x.id === r.id)!)} />
             <input inputMode="decimal" value={r.load_kg ?? ''} onChange={(e) => patch(r.id, { load_kg: e.target.value === '' ? null : Number(e.target.value.replace(',', '.')) })} onBlur={() => save(sets!.find((x) => x.id === r.id)!)} />
-            <select className={needRir === r.id ? 'bad' : ''} value={r.rir ?? ''} onChange={(e) => patch(r.id, { rir: e.target.value === '' ? null : Number(e.target.value) }, true)}>
+            <select className={needRir === r.id ? 'bad' : ''} value={r.rir == null ? '' : Math.min(r.rir, 3)} onChange={(e) => patch(r.id, { rir: e.target.value === '' ? null : Number(e.target.value) }, true)}>
               <option value="">RIR</option>
-              {[0, 1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}</option>)}
+              {[0, 1, 2, 3].map((n) => <option key={n} value={n}>{n === 3 ? '3+' : n}</option>)}
             </select>
             <button className={r.done ? 'check on' : 'check'} onClick={() => toggleDone(r)} aria-label="Serie hecha">✓</button>
           </div>

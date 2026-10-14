@@ -3,6 +3,11 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 2.3 · 2026-10-14
+- La pantalla no se apaga durante toda la sesión de entreno (antes solo durante el cardio guiado).
+- RIR simplificado: 0, 1, 2 y 3+ (se quitan 4 y 5).
+- Se quita la casilla "Piernas cargadas" del cardio: ya se decide con la pregunta de cómo sientes las piernas.
+
 ## 2.2 · 2026-10-08
 - La app comprueba la versión al abrirse y cada vez que vuelves a ella: si hay una nueva, pide actualizar de inmediato, sin esperar a que el navegador la descargue en segundo plano.
 

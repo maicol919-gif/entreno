@@ -57,7 +57,6 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   const [logs, setLogs] = useState<LogRow[] | null>(null)
   const [feel, setFeel] = useState<LegsFeel | null>(saved.current?.feel ?? null)
   const [mode, setMode] = useState<Mode>(saved.current?.mode ?? plan.kind)
-  const [reducedChoice, setReducedChoice] = useState<boolean | null>(null)
   const [run, setRun] = useState<Run | null>(saved.current)
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<'plan' | 'form'>('plan')
@@ -99,7 +98,7 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
     if (!run && choice) setMode(warnings.length > 0 && choice.mode === 'intervalos' ? 'recuperacion' : choice.mode)
   }, [run, choice, warnings.length])
 
-  const reduced = run?.reduced ?? reducedChoice ?? choice?.reduced ?? false
+  const reduced = run?.reduced ?? choice?.reduced ?? false
   const cfg = run?.cfg ?? next.config
   const segs: Segment[] = useMemo(() => (mode === 'intervalos' ? intervalSession(cfg) : recoveryWalk(reduced)), [mode, cfg, reduced])
   const total = totalSeconds(segs)
@@ -311,10 +310,7 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
           {mode === 'recuperacion' && (
             <>
               <p className="muted">Frases completas todo el rato.</p>
-              <label className="check-row">
-                <input type="checkbox" checked={reduced} onChange={(e) => setReducedChoice(e.target.checked)} />
-                <span>Piernas cargadas: inclinación máx. 2 % y velocidad máx. 5,0 km/h</span>
-              </label>
+              {reduced && <p className="muted">Como tus piernas están cargadas, la caminata va con inclinación máx. 2 % y velocidad máx. 5,0 km/h.</p>}
             </>
           )}
 

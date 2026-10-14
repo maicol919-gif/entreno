@@ -47,6 +47,6 @@ export function fmtDate(iso: string): string {
 
 export function fmtSets(sets: PastSession['sets']): string {
   return sets
-    .map((s) => `${s.reps ?? '–'}×${s.load_kg ?? '–'}${s.rir != null ? ` (RIR ${s.rir})` : ''}`)
+    .map((s) => `${s.reps ?? '–'}×${s.load_kg ?? '–'}${s.rir != null ? ` (RIR ${s.rir >= 3 ? '3+' : s.rir})` : ''}`)
     .join(' · ')
 }

@@ -9,6 +9,7 @@ import ExerciseView from './ExerciseView'
 import Cardio from './Cardio'
 import type { LegContext } from '../lib/treadmill'
 import { useRest } from '../rest'
+import { useKeepAwake } from '../lib/keepAwake'
 
 interface CycleSummary {
   sessions: number
@@ -66,6 +67,8 @@ export default function Today() {
   const [summary, setSummary] = useState<CycleSummary | null>(null)
   const [ack, setAck] = useState<string | null>(() => readAck())
   const [flags, setFlags] = useState<Record<string, Flag>>({})
+  // la pantalla no se apaga mientras la sesión de entreno está en curso
+  useKeepAwake(session?.status === 'in_progress')
 
   const day = days.find((d) => d.id === dayId) ?? null
   const exById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
