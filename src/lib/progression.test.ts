@@ -89,17 +89,17 @@ describe('plan', () => {
 })
 
 describe('cardioFor', () => {
-  it('días 1, 3 y 5: intervalos', () => {
-    for (const d of [1, 3, 5]) expect(cardioFor(d, 2)?.kind).toBe('intervalos')
+  it('días 1, 3 y 5: hasta nivel dura', () => {
+    for (const d of [1, 3, 5]) expect(cardioFor(d, 2)).toEqual({ cap: 'dura', optional: false })
   })
-  it('días 2 y 4 (pierna): caminata suave opcional', () => {
-    expect(cardioFor(2, 2)).toMatchObject({ kind: 'recuperacion', optional: true })
-    expect(cardioFor(4, 2)?.kind).toBe('recuperacion')
+  it('días 2 y 4 (pierna): como máximo media y opcional', () => {
+    expect(cardioFor(2, 2)).toEqual({ cap: 'media', optional: true })
+    expect(cardioFor(4, 2)).toEqual({ cap: 'media', optional: true })
   })
   it('semana de descarga: solo suave', () => {
-    expect(cardioFor(1, 7)?.kind).toBe('recuperacion')
+    expect(cardioFor(1, 7)?.cap).toBe('suave')
   })
-  it('fin de semana sin cardio programado', () => {
+  it('fuera de los días 1-5 no hay cardio programado', () => {
     expect(cardioFor(6, 1)).toBeNull()
   })
 })

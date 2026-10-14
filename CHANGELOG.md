@@ -3,6 +3,14 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 2.4 · 2026-10-14
+- Cardio en tres niveles según cómo sientas las piernas: dura (frescas), media (normales) y suave (cargadas). En días de pierna el tope es media.
+- Duraciones que crecen por fase del ciclo (semanas 1-2, 3-4 y 5-6; la descarga vuelve a la fase 1): dura 20 → 25 → 30 min, media 25 → 28 → 30 min, suave 30 → 35 → 40 min. Los bloques duros crecen en tiempo, no en velocidad.
+- Nivel media nuevo: 3 bloques continuos a ~8,5 km/h; la velocidad se ajusta ±0,5 km/h con el test de habla del último bloque.
+- Cardio guiado rediseñado: inclinación a la izquierda y velocidad a la derecha (como la máquina), lista completa de tramos con el actual resaltado, tiempo total restante y marcas de bloque en la barra de progreso.
+- Alerta luminosa (parpadeo de color) en cada cambio de tramo, además del pitido.
+- Progreso muestra los cardios de los últimos 7 días por nivel.
+
 ## 2.3 · 2026-10-14
 - La pantalla no se apaga durante toda la sesión de entreno (antes solo durante el cardio guiado).
 - RIR simplificado: 0, 1, 2 y 3+ (se quitan 4 y 5).

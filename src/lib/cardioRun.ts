@@ -1,4 +1,4 @@
-import type { IntervalConfig, LegsFeel } from './treadmill'
+import type { IntervalConfig, Level, LegsFeel, Phase } from './treadmill'
 
 const KEY = 'entreno.cardio.run'
 /** Un cardio en curso se considera abandonado pasadas 12 h. */
@@ -6,7 +6,8 @@ const MAX_AGE_MS = 12 * 3600 * 1000
 
 export interface Run {
   start: number
-  mode: 'intervalos' | 'recuperacion'
+  level: Level
+  phase: Phase
   cfg: IntervalConfig
   reduced: boolean
   sessionId: string
@@ -17,7 +18,8 @@ export interface Run {
 export function readRun(): Run | null {
   try {
     const r = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Run | null
-    return r && Date.now() - r.start < MAX_AGE_MS ? r : null
+    // una sesión guardada por una versión anterior (sin nivel) se descarta
+    return r && r.level && Date.now() - r.start < MAX_AGE_MS ? r : null
   } catch {
     return null
   }

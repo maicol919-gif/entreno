@@ -1,4 +1,5 @@
 import type { RoutineItem } from '../types'
+import type { Level } from './treadmill'
 
 export const LEG_MUSCLES = ['Cuádriceps', 'Isquiotibiales', 'Glúteos']
 export const CYCLE_LENGTH = 7 // 6 semanas de trabajo + 1 de descarga
@@ -69,36 +70,24 @@ export function adjustForSoreness(sets: number, lastSoreness: number | null): nu
 }
 
 export interface CardioPlan {
-  kind: 'intervalos' | 'recuperacion'
-  minutes: number
-  title: string
-  detail: string
+  /** nivel máximo permitido hoy (el nivel real depende de cómo sientas las piernas) */
+  cap: Level
+  /** el cardio de hoy es opcional */
   optional: boolean
 }
 
 /**
- * Cardio en cinta al final de la sesión de fuerza (protocolo configurable de intervalos).
- * - Días 1, 3 y 5 (torso): intervalos (la regla de no repetir en días seguidos se valida con las fechas reales).
- * - Días 2 y 4 (pierna): caminata suave en cuesta, opcional.
- * - Semana de descarga: solo caminata suave.
+ * Cardio en cinta al final de la sesión de fuerza.
+ * - Días 1, 3 y 5 (torso): hasta nivel DURA.
+ * - Días 2 y 4 (pierna): como máximo nivel MEDIA (acabas de entrenar piernas); opcional.
+ * - Semana de descarga: solo nivel SUAVE.
+ * El nivel final lo decide cómo sientes las piernas (frescas = dura, normales = media, cargadas = suave).
  */
 export function cardioFor(weekday: number, week: number): CardioPlan | null {
-  const soft: CardioPlan = {
-    kind: 'recuperacion',
-    minutes: 15,
-    title: 'Caminata en cuesta 15 min',
-    detail: 'Día suave: frases completas todo el rato. Inclinación de 1 a 5 %, velocidad 4,5-5,5 km/h.',
-    optional: weekday === 2 || weekday === 4,
-  }
-  if (weekday === 6 || weekday === 7) return null
-  if (isDeload(week) || weekday === 2 || weekday === 4) return soft
-  return {
-    kind: 'intervalos',
-    minutes: 20,
-    title: 'Intervalos en cinta 20 min',
-    detail: 'Calentamiento 5→9 km/h, 4 bloques de 2/2/2/3 min a 9,5-10 km/h (1 %) con recuperación a 5,5 km/h. Test de habla al final.',
-    optional: false,
-  }
+  if (weekday < 1 || weekday > 5) return null
+  if (isDeload(week)) return { cap: 'suave', optional: weekday === 2 || weekday === 4 }
+  if (weekday === 2 || weekday === 4) return { cap: 'media', optional: true }
+  return { cap: 'dura', optional: false }
 }
 
 /**

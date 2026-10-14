@@ -5,31 +5,36 @@ import { toISODate, type CardioPlan } from '../lib/plan'
 import { readRun, writeRun, type Run } from '../lib/cardioRun'
 import {
   EFFORT_LEVELS,
+  LEVEL_LABEL,
   SPEECH_PHRASE,
-  cardioChoice,
-  intervalSession,
+  buildSession,
+  capLevel,
+  cardioPhase,
   intervalWarnings,
+  kindOf,
   legHints,
+  levelFor,
+  levelMinutes,
   locate,
   nextInterval,
-  recoveryWalk,
+  nextMedium,
   totalSeconds,
+  type IntervalConfig,
   type LastInterval,
   type LegContext,
   type LegsFeel,
+  type Level,
   type PastCardio,
   type Segment,
   type SpeechTest,
 } from '../lib/treadmill'
 import { beep, useRest } from '../rest'
 
-type Mode = 'intervalos' | 'recuperacion'
-
 interface LogRow extends PastCardio {
   minutes: number
   speech_test: SpeechTest | null
   discomfort: boolean
-  protocol: Partial<LastInterval['protocol']> | null
+  protocol: (Partial<IntervalConfig> & { phase?: number }) | null
 }
 
 function sevenDaysAgo(): string {
@@ -39,24 +44,31 @@ function sevenDaysAgo(): string {
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 
 const FEEL_OPTIONS: { value: LegsFeel; label: string; hint: string }[] = [
-  { value: 'frescas', label: 'Frescas', hint: 'sin molestia, con ganas' },
-  { value: 'normales', label: 'Normales', hint: 'algo de cansancio, nada raro' },
-  { value: 'cargadas', label: 'Cargadas', hint: 'agujetas o pesadez' },
+  { value: 'frescas', label: 'Frescas', hint: 'sin molestia, con ganas · nivel DURA' },
+  { value: 'normales', label: 'Normales', hint: 'algo de cansancio, nada raro · nivel MEDIA' },
+  { value: 'cargadas', label: 'Cargadas', hint: 'agujetas o pesadez · nivel SUAVE' },
 ]
+
+const LEVEL_HINT: Record<Level, string> = {
+  dura: 'Intervalos a 9,5-10 km/h (esfuerzo 8-9)',
+  media: 'Bloques continuos a ~8,5 km/h (esfuerzo 6-7)',
+  suave: 'Caminata en cuesta (esfuerzo 3-4)',
+}
 
 interface Props {
   plan: CardioPlan
   sessionId: string
   legCtx: LegContext
+  week: number
   onBack: () => void
 }
 
-export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
+export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props) {
   const { clear: clearRest } = useRest()
   const saved = useRef(readRun())
   const [logs, setLogs] = useState<LogRow[] | null>(null)
   const [feel, setFeel] = useState<LegsFeel | null>(saved.current?.feel ?? null)
-  const [mode, setMode] = useState<Mode>(saved.current?.mode ?? plan.kind)
+  const [levelChoice, setLevelChoice] = useState<Level | null>(null)
   const [run, setRun] = useState<Run | null>(saved.current)
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<'plan' | 'form'>('plan')
@@ -68,11 +80,12 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   const [err, setErr] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
-  const [showTable, setShowTable] = useState(false)
+  const [flash, setFlash] = useState<{ key: number; kind: Segment['kind'] } | null>(null)
   const lastIndex = useRef(-1)
   const savingRef = useRef(false)
 
   const today = toISODate(new Date())
+  const cp = cardioPhase(week)
 
   useEffect(() => {
     void supabase
@@ -83,24 +96,25 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
       .then(({ data }) => setLogs((data ?? []) as LogRow[]))
   }, [])
 
-  const lastInterval: LastInterval | null = useMemo(() => {
-    const l = logs?.find((x) => x.kind === 'intervalos')
+  const lastOf = (kind: string): LastInterval | null => {
+    const l = logs?.find((x) => x.kind === kind)
     return l ? { protocol: l.protocol ?? null, speech_test: l.speech_test, discomfort: l.discomfort } : null
-  }, [logs])
-
-  const next = useMemo(() => nextInterval(lastInterval), [lastInterval])
+  }
+  const nextHard = useMemo(() => nextInterval(lastOf('intervalos')), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
+  const nextMed = useMemo(() => nextMedium(lastOf('media')), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
   const warnings = useMemo(() => intervalWarnings(logs ?? [], today, sevenDaysAgo()), [logs, today])
   const hints = useMemo(() => legHints(legCtx), [legCtx])
 
-  // al elegir cómo están las piernas se decide el tipo de cardio (aún puedes cambiarlo a mano)
-  const choice = feel ? cardioChoice(plan.kind, feel) : null
-  useEffect(() => {
-    if (!run && choice) setMode(warnings.length > 0 && choice.mode === 'intervalos' ? 'recuperacion' : choice.mode)
-  }, [run, choice, warnings.length])
+  // nivel recomendado: según las piernas, con el tope del día y las reglas de descanso para el nivel duro
+  const baseLevel = feel ? capLevel(levelFor(feel), plan.cap) : null
+  const hardBlocked = baseLevel === 'dura' && (warnings.length > 0 || nextHard.suggestSoft)
+  const recommended: Level | null = baseLevel ? (hardBlocked ? 'suave' : baseLevel) : null
+  const level: Level | null = run?.level ?? levelChoice ?? recommended
 
-  const reduced = run?.reduced ?? choice?.reduced ?? false
-  const cfg = run?.cfg ?? next.config
-  const segs: Segment[] = useMemo(() => (mode === 'intervalos' ? intervalSession(cfg) : recoveryWalk(reduced)), [mode, cfg, reduced])
+  const reduced = run?.reduced ?? (feel === 'cargadas' && level === 'suave')
+  const cfg: IntervalConfig = run?.cfg ?? { ...nextHard.config, mediumSpeed: nextMed.mediumSpeed }
+  const ph = run?.phase ?? cp.phase
+  const segs: Segment[] = useMemo(() => (level ? buildSession(level, ph, cfg, reduced) : []), [level, ph, cfg, reduced])
   const total = totalSeconds(segs)
 
   const elapsed = run ? Math.max(0, Math.floor((now - run.start) / 1000)) : 0
@@ -113,7 +127,7 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
     return () => window.clearInterval(t)
   }, [run, finished])
 
-  // aviso al cambiar de tramo
+  // aviso al cambiar de tramo: parpadeo de color + pitido (+ vibración donde el navegador la permita)
   useEffect(() => {
     if (!run) return
     const idx = pos ? pos.index : segs.length
@@ -121,10 +135,17 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
       if (lastIndex.current !== -1) {
         navigator.vibrate?.(idx >= segs.length ? [300, 150, 300, 150, 300] : segs[idx].kind === 'fast' ? [200, 100, 200] : [200])
         beep()
+        setFlash({ key: Date.now(), kind: idx >= segs.length ? 'cool' : segs[idx].kind })
       }
       lastIndex.current = idx
     }
   }, [run, pos, segs])
+
+  // el tramo actual siempre queda visible en la lista
+  useEffect(() => {
+    if (!run || !pos) return
+    document.getElementById(`seg-${pos.index}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [run, pos?.index]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // mantener la pantalla encendida mientras corre
   useEffect(() => {
@@ -143,10 +164,10 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   }, [finished])
 
   function begin() {
-    if (!feel) return
+    if (!feel || !level) return
     clearRest()
     lastIndex.current = -1
-    const r: Run = { start: Date.now(), mode, cfg, reduced, sessionId, feel }
+    const r: Run = { start: Date.now(), level, phase: cp.phase, cfg, reduced, sessionId, feel }
     setNow(r.start)
     setRun(r)
     writeRun(r)
@@ -166,26 +187,33 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
 
   const workedSec = run ? Math.min(total, Math.floor(((stoppedAt ?? now) - run.start) / 1000)) : 0
   const completed = run != null && (finished || workedSec >= total)
+  const needsSpeech = run != null && completed && run.level !== 'suave'
 
   async function save() {
     if (!run || savingRef.current || done) return
-    if (mode === 'intervalos' && completed && !speech) {
+    if (needsSpeech && !speech) {
       setErr('Haz el test de habla y elige el resultado.')
       return
     }
     savingRef.current = true
     setSaving(true)
     setErr(null)
+    const protocol =
+      run.level === 'dura'
+        ? { ...run.cfg, phase: run.phase }
+        : run.level === 'media'
+          ? { mediumSpeed: run.cfg.mediumSpeed, phase: run.phase }
+          : { phase: run.phase }
     const { error } = await supabase.from('cardio_logs').insert({
       session_id: run.sessionId,
       date: toISODate(new Date(run.start)),
-      kind: mode,
+      kind: kindOf(run.level),
       machine: 'Trotadora',
       minutes: Math.max(1, Math.round((workedSec / 60) * 10) / 10),
       rpe: effort,
-      speech_test: mode === 'intervalos' && completed ? speech : null,
+      speech_test: needsSpeech ? speech : null,
       discomfort,
-      protocol: mode === 'intervalos' ? run.cfg : null,
+      protocol,
       legs_feel: run.feel,
       note: note || null,
     })
@@ -201,26 +229,58 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
     window.setTimeout(onBack, 700)
   }
 
-  const lastSame = logs?.find((l) => l.kind === mode)
-
   // ───────── ejecución guiada ─────────
   if (run && phase === 'plan' && pos) {
     const seg = segs[pos.index]
-    const upcoming = segs[pos.index + 1]
+    const remaining = Math.max(0, total - elapsed)
+    let acc = 0
+    const starts = segs.map((s) => {
+      const from = acc
+      acc += s.sec
+      return from
+    })
+    // marcas de cada bloque duro sobre la barra de progreso
+    const marks = segs.map((s, i) => ({ i, s })).filter((x) => x.s.kind === 'fast').map((x) => (starts[x.i] / total) * 100)
     return (
       <div className="screen">
+        {flash && <div key={flash.key} className={`flash ${flash.kind}`} aria-hidden="true" />}
         <div className={`runcard ${seg.kind}`}>
           <p className="runlabel">{seg.label}</p>
-          <p className="runspeed">{seg.speed.toFixed(1)} <small>km/h</small></p>
-          <p className="runincline">Inclinación {seg.incline} %</p>
+          <div className="runpanels">
+            <div>
+              <small>INCLINACIÓN</small>
+              <strong>{seg.incline}<span>%</span></strong>
+            </div>
+            <div>
+              <small>VELOCIDAD</small>
+              <strong>{seg.speed.toFixed(1)}<span>km/h</span></strong>
+            </div>
+          </div>
           <p className="runleft">{fmt(pos.left)}</p>
         </div>
-        <p className="muted center-text">
-          {upcoming ? `Siguiente: ${upcoming.speed.toFixed(1)} km/h · ${upcoming.incline} % (${upcoming.label})` : 'Último tramo'}
-        </p>
-        <div className="progress"><div style={{ width: `${Math.min(100, (elapsed / total) * 100)}%` }} /></div>
-        <p className="muted center-text">{fmt(elapsed)} / {fmt(total)}</p>
-        {mode === 'intervalos' && <p className="muted center-text">No te agarres de la barra. No recortes el enfriamiento.</p>}
+
+        <div className="progress marks">
+          <div style={{ width: `${Math.min(100, (elapsed / total) * 100)}%` }} />
+          {marks.map((m, k) => <i key={k} style={{ left: `${m}%` }} />)}
+        </div>
+        <p className="muted center-text">Quedan {fmt(remaining)} de {fmt(total)}</p>
+
+        <ol className="seglist">
+          {segs.map((s, i) => {
+            const cls = i < pos.index ? 'done' : i === pos.index ? 'current' : 'next'
+            return (
+              <li id={`seg-${i}`} key={i} className={`${cls} ${s.kind}`}>
+                <span className="when">{fmt(starts[i])}</span>
+                <span className="inc">{s.incline} %</span>
+                <span className="spd">{s.speed.toFixed(1)} km/h</span>
+                <span className="lbl">{s.label}</span>
+                <span className="dur">{fmt(s.sec)}</span>
+              </li>
+            )
+          })}
+        </ol>
+
+        {run.level === 'dura' && <p className="muted center-text">No te agarres de la barra. No recortes el enfriamiento.</p>}
         <button onClick={stop}>Terminar antes</button>
       </div>
     )
@@ -230,13 +290,15 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   if (run && phase === 'form') {
     return (
       <div className="screen">
-        <h2>{completed ? 'Cardio completo' : 'Cardio parcial'}</h2>
+        <h2>{completed ? 'Cardio completo' : 'Cardio parcial'} · {LEVEL_LABEL[run.level]}</h2>
         <p className="muted">Tiempo: {fmt(workedSec)}</p>
 
-        {mode === 'intervalos' && completed && (
+        {needsSpeech && (
           <section className="card">
             <h3>Test de habla</h3>
-            <p className="muted">Al final de la última recuperación, di de corrido: <em>“{SPEECH_PHRASE}”</em></p>
+            <p className="muted">
+              {run.level === 'dura' ? 'Al final de la última recuperación' : 'En el último minuto del último bloque'}, di de corrido: <em>“{SPEECH_PHRASE}”</em>
+            </p>
             {(
               [
                 ['entera', 'Entera, de un tirón'],
@@ -274,7 +336,7 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
   }
 
   // ───────── plan del día ─────────
-  const minutes = Math.round((total / 60) * 10) / 10
+  const lastSame = level ? logs?.find((l) => l.kind === kindOf(level)) : null
   let t = 0
   return (
     <div className="screen">
@@ -290,42 +352,39 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
               <strong>{o.label}</strong> <span className="muted">· {o.hint}</span>
             </button>
           ))}
+          {plan.cap !== 'dura' && <p className="muted">Hoy el tope es nivel {LEVEL_LABEL[plan.cap].toUpperCase()}{plan.optional ? ' y el cardio es opcional' : ''}.</p>}
         </section>
       )}
 
-      {feel && (
+      {feel && level && (
         <>
-          <p>
-            {mode === 'intervalos' ? 'Intervalos' : 'Caminata suave en cuesta'} · {minutes} min
-            {plan.optional && mode === 'recuperacion' ? ' · opcional' : ''}
-          </p>
           <p className="muted">
-            Piernas {feel}.{' '}
-            <button className="link" onClick={() => setFeel(null)}>Cambiar</button>
+            Piernas {feel}. <button className="link" onClick={() => { setFeel(null); setLevelChoice(null) }}>Cambiar</button>
+          </p>
+
+          <div className="levels">
+            {(['dura', 'media', 'suave'] as Level[]).map((l) => (
+              <button key={l} className={`levelchip ${level === l ? 'on' : ''}`} onClick={() => setLevelChoice(l)}>
+                <strong>{LEVEL_LABEL[l]}</strong>
+                <span>{levelMinutes(l, cp.phase)} min</span>
+                {recommended === l && <small>recomendado</small>}
+              </button>
+            ))}
+          </div>
+          <p className="muted">
+            {LEVEL_HINT[level]}.{' '}
+            {cp.deload ? 'Semana de descarga: duraciones de la fase 1.' : `Fase ${cp.phase + 1} de 3 del ciclo.`}
           </p>
 
           {logs === null && <p className="muted">Cargando…</p>}
-          {warnings.map((w) => <p key={w} className="fixed">⚠ {w}</p>)}
-          {mode === 'intervalos' && <p className="fixed">📌 {next.message}</p>}
-          {mode === 'recuperacion' && (
-            <>
-              <p className="muted">Frases completas todo el rato.</p>
-              {reduced && <p className="muted">Como tus piernas están cargadas, la caminata va con inclinación máx. 2 % y velocidad máx. 5,0 km/h.</p>}
-            </>
-          )}
-
-          {plan.kind === 'intervalos' && (
-            <div className="row">
-              {mode === 'intervalos' ? (
-                <button className="link" onClick={() => setMode('recuperacion')}>Prefiero caminata suave hoy</button>
-              ) : (
-                <button className="link" onClick={() => setMode('intervalos')}>Hacer intervalos igualmente</button>
-              )}
-            </div>
-          )}
+          {(level === 'dura' || hardBlocked) && warnings.map((w) => <p key={w} className="fixed">⚠ {w}</p>)}
+          {level === 'dura' && <p className="fixed">📌 {nextHard.message}</p>}
+          {level === 'media' && <p className="fixed">📌 {nextMed.message}</p>}
+          {level === 'suave' && reduced && <p className="muted">Como tus piernas están cargadas, la caminata va con inclinación máx. 2 % y velocidad máx. 5,0 km/h.</p>}
+          {plan.optional && <p className="muted">Hoy el cardio es opcional (día de pierna).</p>}
 
           <section className="card last">
-            <h3>Última vez</h3>
+            <h3>Última vez ({LEVEL_LABEL[level]})</h3>
             {lastSame ? (
               <p>
                 {fmtDate(lastSame.date)}: {lastSame.minutes} min
@@ -333,35 +392,29 @@ export default function Cardio({ plan, sessionId, legCtx, onBack }: Props) {
                 {lastSame.discomfort ? ' · con molestia' : ''}
               </p>
             ) : (
-              <p className="muted">Primera vez registrada en la app.</p>
+              <p className="muted">Primera vez registrada en este nivel.</p>
             )}
           </section>
 
           <section className="card">
-            <div className="row between">
-              <h3>Tramos</h3>
-              <button className="link" onClick={() => setShowTable((v) => !v)}>{showTable ? 'Ocultar' : 'Ver'}</button>
-            </div>
-            {showTable && (
-              <table className="segtable">
-                <tbody>
-                  {segs.map((s, i) => {
-                    const from = t
-                    t += s.sec
-                    return (
-                      <tr key={i} className={s.kind}>
-                        <td>{fmt(from)}–{fmt(t)}</td>
-                        <td>{s.speed.toFixed(1)} km/h</td>
-                        <td>{s.incline} %</td>
-                        <td>{s.label}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )}
+            <h3>Toda la rutina · {Math.round(total / 60)} min</h3>
+            <ol className="seglist">
+              {segs.map((s, i) => {
+                const from = t
+                t += s.sec
+                return (
+                  <li key={i} className={`next ${s.kind}`}>
+                    <span className="when">{fmt(from)}</span>
+                    <span className="inc">{s.incline} %</span>
+                    <span className="spd">{s.speed.toFixed(1)} km/h</span>
+                    <span className="lbl">{s.label}</span>
+                    <span className="dur">{fmt(s.sec)}</span>
+                  </li>
+                )
+              })}
+            </ol>
             <button className="primary" onClick={begin} disabled={logs === null}>Empezar guiado</button>
-            <p className="muted center-text">Vibra y suena en cada cambio de tramo. Mantiene la pantalla encendida. Si la página se recarga, el cardio sigue contando y se reabre solo.</p>
+            <p className="muted center-text">Parpadea y suena en cada cambio de tramo. Mantiene la pantalla encendida. Si la página se recarga, el cardio sigue contando y se reabre solo.</p>
           </section>
         </>
       )}

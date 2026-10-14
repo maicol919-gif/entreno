@@ -271,7 +271,7 @@ export default function Today() {
         rx={rxFor(openItem, ex)}
         restSeconds={settings.rest_seconds}
         onBack={() => setOpenItem(null)}
-        nextName={nextEx?.name ?? (cardio ? `Cardio · ${cardio.title}` : null)}
+        nextName={nextEx?.name ?? (cardio ? 'Cardio en cinta' : null)}
         onNext={() => {
           window.scrollTo({ top: 0 })
           if (nextItem) setOpenItem(nextItem)
@@ -288,7 +288,7 @@ export default function Today() {
   }
 
   if (openCardio && session && cardio) {
-    return <Cardio plan={cardio} sessionId={session.id} legCtx={legCtx} onBack={() => setOpenCardio(false)} />
+    return <Cardio plan={cardio} sessionId={session.id} legCtx={legCtx} week={week} onBack={() => setOpenCardio(false)} />
   }
 
   if (loading) return <div className="screen"><p>Cargando…</p></div>
@@ -393,8 +393,8 @@ export default function Today() {
           {cardio && (
             <button className={`exrow ${cardioMin > 0 ? 'finished' : ''}`} onClick={() => setOpenCardio(true)}>
               <span>
-                <strong>Cardio · {cardio.title}</strong>
-                <small>Al final de la fuerza · {cardio.kind === 'intervalos' ? 'según cómo sientas las piernas' : 'día suave'}{cardio.optional ? ' · opcional' : ''}</small>
+                <strong>Cardio en cinta</strong>
+                <small>Al final de la fuerza · el nivel (dura, media o suave) depende de tus piernas{cardio.optional ? ' · opcional' : ''}</small>
               </span>
               <span className="count">{cardioMin > 0 ? `${Math.round(cardioMin)} min ✓` : '›'}</span>
             </button>

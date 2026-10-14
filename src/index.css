@@ -105,3 +105,32 @@ button.next { width: 100%; margin: 4px 0 12px; padding: 16px; font-weight: 700; 
 .photogrid img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
 .photogrid .noimg { aspect-ratio: 4 / 3; display: grid; place-items: center; color: var(--muted); font-size: .8rem; }
 .photogrid figcaption { padding: 6px 8px; display: grid; gap: 2px; }
+
+/* Cardio guiado: paneles como la máquina (inclinación a la izquierda, velocidad a la derecha) */
+.runpanels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0; }
+.runpanels > div { background: rgba(0,0,0,.28); border-radius: 12px; padding: 10px 6px; }
+.runpanels small { display: block; font-size: .7rem; letter-spacing: .08em; opacity: .85; }
+.runpanels strong { display: block; font-size: 3.2rem; font-weight: 800; line-height: 1.1; }
+.runpanels strong span { font-size: 1rem; font-weight: 500; margin-left: 4px; }
+.progress.marks { position: relative; }
+.progress.marks i { position: absolute; top: 0; bottom: 0; width: 2px; background: #ff9c9c; opacity: .9; }
+.seglist { list-style: none; margin: 8px 0; padding: 0; display: grid; gap: 4px; }
+.seglist li { display: grid; grid-template-columns: 44px 44px 74px 1fr 42px; gap: 6px; align-items: center; padding: 8px 8px; border-radius: 8px; background: #0f1218; border: 1px solid transparent; font-size: .85rem; }
+.seglist li.fast { border-left: 3px solid #ff6b6b; }
+.seglist li.rec { border-left: 3px solid #5ee08a; }
+.seglist li.warm, .seglist li.cool { border-left: 3px solid #6aa7ff; }
+.seglist li.done { opacity: .4; text-decoration: line-through; }
+.seglist li.current { border-color: var(--text); background: #232834; font-size: 1rem; font-weight: 700; }
+.seglist .dur { text-align: right; color: var(--muted); }
+.flash { position: fixed; inset: 0; z-index: 40; pointer-events: none; animation: flashpulse 2.4s ease-out forwards; }
+.flash.fast { background: #ff4d4d; }
+.flash.rec { background: #34d27a; }
+.flash.warm, .flash.cool { background: #4a90ff; }
+@keyframes flashpulse { 0% { opacity: .85; } 20% { opacity: .15; } 38% { opacity: .75; } 100% { opacity: 0; } }
+.levels { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0; }
+.levelchip { display: grid; gap: 2px; text-align: center; padding: 10px 4px; }
+.levelchip span { color: var(--muted); font-size: .85rem; }
+.levelchip small { color: var(--accent); font-size: .7rem; }
+.levelchip.on { border-color: var(--accent); background: #1d3a29; }
+/* el panel de inclinación/velocidad queda fijo arriba mientras se desplaza la lista de tramos */
+.runcard { position: sticky; top: 0; z-index: 6; box-shadow: 0 6px 14px rgba(0,0,0,.45); }

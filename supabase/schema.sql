@@ -100,7 +100,7 @@ create table public.cardio_logs (
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   session_id uuid references public.sessions(id) on delete set null,
   date date not null,
-  kind text not null check (kind in ('liss','hiit','intervalos','recuperacion')),
+  kind text not null check (kind in ('liss','hiit','intervalos','media','recuperacion')),
   machine text,
   minutes numeric not null check (minutes > 0),
   rpe int check (rpe between 1 and 10),

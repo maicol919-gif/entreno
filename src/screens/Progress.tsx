@@ -213,8 +213,9 @@ function BodyWeight() {
 }
 
 function CardioWeek() {
-  const [iv, setIv] = useState(0)
-  const [walk, setWalk] = useState(0)
+  const [hard, setHard] = useState(0)
+  const [med, setMed] = useState(0)
+  const [soft, setSoft] = useState(0)
   const [lastSpeech, setLastSpeech] = useState<string | null>(null)
   useEffect(() => {
     void supabase
@@ -223,14 +224,17 @@ function CardioWeek() {
       .gte('date', sevenDaysAgo())
       .order('date', { ascending: false })
       .then(({ data }) => {
-        let a = 0
-        let b = 0
+        let h = 0
+        let m = 0
+        let sMin = 0
         for (const r of data ?? []) {
-          if (r.kind === 'intervalos') a += 1
-          else b += Number(r.minutes)
+          if (r.kind === 'intervalos') h += 1
+          else if (r.kind === 'media') m += 1
+          else sMin += Number(r.minutes)
         }
-        setIv(a)
-        setWalk(b)
+        setHard(h)
+        setMed(m)
+        setSoft(sMin)
         setLastSpeech((data ?? []).find((r) => r.speech_test)?.speech_test ?? null)
       })
   }, [])
@@ -238,8 +242,9 @@ function CardioWeek() {
   return (
     <section className="card">
       <h3>Cardio de los últimos 7 días</h3>
-      <p>Intervalos: <strong className={iv >= 1 && iv <= 3 ? 'ok' : ''}>{iv}</strong> <span className="muted">(máx. 3, nunca días seguidos)</span></p>
-      <p>Caminata suave: <strong>{Math.round(walk)} min</strong></p>
+      <p>Dura: <strong className={hard >= 1 && hard <= 3 ? 'ok' : ''}>{hard}</strong> <span className="muted">(máx. 3, nunca días seguidos)</span></p>
+      <p>Media: <strong>{med}</strong></p>
+      <p>Suave: <strong>{Math.round(soft)} min</strong></p>
       <p className="muted">Último test de habla: {label}</p>
     </section>
   )
