@@ -20,7 +20,7 @@ App web instalable (PWA) para llevar un entrenamiento de fuerza con progresión 
 
 ## Alimentación
 
-La alimentación, el peso y la cintura viven en la app hermana **Comida** (repositorio `maicol919-gif/comida`). Las dos comparten la cuenta y este mismo proyecto de Supabase; el esquema completo está en `supabase/schema.sql`.
+La alimentación, el peso y la cintura viven en la app hermana **Alimentación** (repositorio `maicol919-gif/alimentacion`). Las dos comparten la cuenta y este mismo proyecto de Supabase; el esquema completo está en `supabase/schema.sql`.
 
 ## Stack
 

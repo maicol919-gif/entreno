@@ -4,7 +4,7 @@ Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **m
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
 ## 2.8 · 2026-10-17
-- **Comida y Cuerpo se mudaron a su propia app, Comida** (https://maicol919-gif.github.io/comida/), con la misma cuenta y los mismos datos. Entreno vuelve a ser solo entrenamiento: así un cambio en la alimentación no puede afectar a tu sesión.
+- **Comida y Cuerpo se mudaron a su propia app, Alimentación** (https://maicol919-gif.github.io/alimentacion/), con la misma cuenta y los mismos datos. Entreno vuelve a ser solo entrenamiento: así un cambio en la alimentación no puede afectar a tu sesión.
 - La pestaña Gimnasio vuelve a la barra, como antes de la 2.6.
 - El peso corporal sigue visible en Progreso.
 
