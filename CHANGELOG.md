@@ -3,6 +3,13 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 2.5 · 2026-10-16
+- Pestaña **Cuerpo**: registra peso y cintura (juntos o por separado, con fecha), con media de 7 días, variación contra la semana anterior y gráficas.
+- Cintura/altura con zona (meta < 0,5) y centímetros que faltan para la meta; aviso si llevas 7 días o más sin medirla.
+- Veredicto del ritmo de pérdida de peso según la media semanal (muy rápido, correcto, lento o sube).
+- Metas diarias en la app: altura, calorías y proteína (base del futuro módulo de alimentación).
+- El peso corporal pasa de Progreso a Cuerpo.
+
 ## 2.4 · 2026-10-14
 - Cardio en tres niveles según cómo sientas las piernas: dura (frescas), media (normales) y suave (cargadas). En días de pierna el tope es media.
 - Duraciones que crecen por fase del ciclo (semanas 1-2, 3-4 y 5-6; la descarga vuelve a la fase 1): dura 20 → 25 → 30 min, media 25 → 28 → 30 min, suave 30 → 35 → 40 min. Los bloques duros crecen en tiempo, no en velocidad.

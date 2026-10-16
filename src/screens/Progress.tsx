@@ -165,50 +165,7 @@ export default function Progress() {
       )}
 
       <CardioWeek />
-      <BodyWeight />
     </div>
-  )
-}
-
-function BodyWeight() {
-  const [list, setList] = useState<{ date: string; kg: number }[]>([])
-  const [value, setValue] = useState('')
-
-  async function load() {
-    const { data } = await supabase.from('body_weight').select('date,kg').order('date', { ascending: false }).limit(30)
-    setList((data ?? []) as { date: string; kg: number }[])
-  }
-  useEffect(() => {
-    void load()
-  }, [])
-
-  async function save() {
-    const kg = Number(value.replace(',', '.'))
-    if (!kg) return
-    await supabase.from('body_weight').upsert({ date: toISODate(new Date()), kg })
-    setValue('')
-    await load()
-  }
-
-  const avg = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : null)
-  const cur = avg(list.slice(0, 7).map((x) => x.kg))
-  const prev = avg(list.slice(7, 14).map((x) => x.kg))
-
-  return (
-    <section className="card">
-      <h3>Peso corporal</h3>
-      <div className="row">
-        <input inputMode="decimal" placeholder="kg de hoy" value={value} onChange={(e) => setValue(e.target.value)} />
-        <button onClick={save}>Guardar</button>
-      </div>
-      {cur != null && (
-        <p>
-          Media 7 días: <strong>{cur.toFixed(1)} kg</strong>
-          {prev != null && <span className="muted"> ({cur - prev >= 0 ? '+' : ''}{(cur - prev).toFixed(2)} vs. semana anterior)</span>}
-        </p>
-      )}
-      {list.slice(0, 7).map((x) => <p key={x.date} className="muted">{x.date}: {x.kg} kg</p>)}
-    </section>
   )
 }
 

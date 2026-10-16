@@ -157,3 +157,12 @@ create policy "gym photos insert own" on storage.objects for insert to authentic
   with check (bucket_id = 'gym-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "gym photos delete own" on storage.objects for delete to authenticated
   using (bucket_id = 'gym-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- Cuerpo (v2.5): cintura junto al peso, y metas diarias en ajustes.
+alter table public.body_weight alter column kg drop not null;
+alter table public.body_weight add column if not exists waist_cm numeric check (waist_cm between 40 and 200);
+alter table public.body_weight drop constraint if exists body_weight_has_value;
+alter table public.body_weight add constraint body_weight_has_value check (kg is not null or waist_cm is not null);
+alter table public.settings add column if not exists height_cm numeric not null default 172;
+alter table public.settings add column if not exists kcal_target int not null default 2150;
+alter table public.settings add column if not exists protein_target int not null default 148;
