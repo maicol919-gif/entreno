@@ -158,6 +158,7 @@ create policy "gym photos insert own" on storage.objects for insert to authentic
 create policy "gym photos delete own" on storage.objects for delete to authenticated
   using (bucket_id = 'gym-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
 
+-- Las tablas de alimentación y cuerpo las usa la app Comida (repositorio aparte); la base de datos es la misma.
 -- Cuerpo (v2.5): cintura junto al peso, y metas diarias en ajustes.
 alter table public.body_weight alter column kg drop not null;
 alter table public.body_weight add column if not exists waist_cm numeric check (waist_cm between 40 and 200);

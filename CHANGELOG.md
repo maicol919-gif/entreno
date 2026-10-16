@@ -3,6 +3,11 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 2.8 · 2026-10-17
+- **Comida y Cuerpo se mudaron a su propia app, Comida** (https://maicol919-gif.github.io/comida/), con la misma cuenta y los mismos datos. Entreno vuelve a ser solo entrenamiento: así un cambio en la alimentación no puede afectar a tu sesión.
+- La pestaña Gimnasio vuelve a la barra, como antes de la 2.6.
+- El peso corporal sigue visible en Progreso.
+
 ## 2.7 · 2026-10-17
 - **Las recetas son plantillas:** al registrar una comida ves cada ingrediente con su cantidad (en gramos o medida casera), puedes cambiarla, quitar ingredientes, añadir otros y reescalar las raciones. Los totales se recalculan al instante.
 - **Guardar como mi receta:** una comida modificada se puede guardar como receta propia.

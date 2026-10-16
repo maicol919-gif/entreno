@@ -7,18 +7,6 @@ export interface Settings {
   mesocycle_start: string | null
   rest_seconds: number
   week_offset: number
-  height_cm: number
-  kcal_target: number
-  protein_target: number
-}
-
-export const DEFAULT_SETTINGS: Settings = {
-  mesocycle_start: null,
-  rest_seconds: 120,
-  week_offset: 0,
-  height_cm: 172,
-  kcal_target: 2150,
-  protein_target: 148,
 }
 
 interface Data {
@@ -55,7 +43,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         exercises: ex.data as Exercise[],
         days: d.data as RoutineDay[],
         items: it.data as RoutineItem[],
-        settings: { ...DEFAULT_SETTINGS, ...((st.data as Partial<Settings> | null) ?? {}) },
+        settings: (st.data as Settings | null) ?? { mesocycle_start: null, rest_seconds: 120, week_offset: 0 },
       })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
