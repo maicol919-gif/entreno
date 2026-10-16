@@ -237,3 +237,19 @@ create policy "own rows" on public.foods for all to authenticated using (user_id
 create policy "own rows" on public.recipes for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 create policy "own rows" on public.recipe_items for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 create policy "own rows" on public.meal_log for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Comidas (v2.7): ingredientes de cada registro, foto y estado "pendiente de completar".
+alter table public.meal_log add column if not exists items jsonb;
+alter table public.meal_log add column if not exists photo_path text;
+alter table public.meal_log add column if not exists status text not null default 'done' check (status in ('done','pending'));
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('meal-photos', 'meal-photos', false, 5242880, array['image/jpeg','image/png','image/webp'])
+on conflict (id) do nothing;
+
+create policy "meal photos select own" on storage.objects for select to authenticated
+  using (bucket_id = 'meal-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "meal photos insert own" on storage.objects for insert to authenticated
+  with check (bucket_id = 'meal-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+create policy "meal photos delete own" on storage.objects for delete to authenticated
+  using (bucket_id = 'meal-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);

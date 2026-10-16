@@ -3,6 +3,14 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 2.7 · 2026-10-17
+- **Las recetas son plantillas:** al registrar una comida ves cada ingrediente con su cantidad (en gramos o medida casera), puedes cambiarla, quitar ingredientes, añadir otros y reescalar las raciones. Los totales se recalculan al instante.
+- **Guardar como mi receta:** una comida modificada se puede guardar como receta propia.
+- **Repetir una comida reciente** con tus mismas cantidades, en un toque.
+- **Foto ahora, detalles después:** una foto de la comida (2 toques) crea una comida "por completar" que no cuenta en los totales hasta que indicas qué llevaba, con la foto a la vista. También puedes añadir foto a cualquier comida.
+- **Editar** una comida ya registrada (ingredientes, cantidades, nota, foto).
+- Las fotos de comidas son privadas, como las del gimnasio.
+
 ## 2.6 · 2026-10-16
 - Pestaña **Comida** con tres vistas: **Mi día**, **Recetas** y **Alimentos**.
 - **Mi día:** barras de proteína y calorías contra tu meta, lo que te falta, carbohidratos y grasa, comidas agrupadas (desayuno, comida, merienda, cena) y navegación por días para completar olvidos.

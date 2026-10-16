@@ -116,5 +116,8 @@ export interface MealEntry {
   carbs: number
   fat: number
   note: string | null
+  items: { food_id: string; name: string; grams: number }[] | null
+  photo_path: string | null
+  status: 'done' | 'pending'
   created_at: string
 }
