@@ -269,3 +269,6 @@ create table public.day_marks (
 alter table public.day_marks enable row level security;
 create policy "own rows" on public.day_marks for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Nutrición (1.10): alimentos deshabilitados (se ocultan en buscadores pero siguen existiendo para el historial).
+alter table public.foods add column if not exists disabled boolean not null default false;
