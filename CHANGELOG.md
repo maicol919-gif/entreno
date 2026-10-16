@@ -3,6 +3,14 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 2.6 · 2026-10-16
+- Pestaña **Comida** con tres vistas: **Mi día**, **Recetas** y **Alimentos**.
+- **Mi día:** barras de proteína y calorías contra tu meta, lo que te falta, carbohidratos y grasa, comidas agrupadas (desayuno, comida, merienda, cena) y navegación por días para completar olvidos.
+- **Añadir comida** en pocos toques: recetas con filtro de tiempo (≤ 5, 10, 15 min), alimentos con cantidad en gramos o en medidas caseras (cucharadas, huevos, latas), recientes y registro rápido (calorías y proteína). Nota opcional en cada comida.
+- **Recetas:** 16 recetas iniciales de Mercadona con ingredientes en gramos y medidas caseras, pasos cortos y calorías, proteína, carbohidratos y grasa por ración.
+- **Alimentos:** 40 alimentos con valores por 100 g, editables con la etiqueta de tu marca. Lo ya registrado no cambia si luego editas un alimento.
+- Mi gimnasio pasa a Ajustes para dejar espacio en la barra de pestañas.
+
 ## 2.5 · 2026-10-16
 - Pestaña **Cuerpo**: registra peso y cintura (juntos o por separado, con fecha), con media de 7 días, variación contra la semana anterior y gráficas.
 - Cintura/altura con zona (meta < 0,5) y centímetros que faltan para la meta; aviso si llevas 7 días o más sin medirla.

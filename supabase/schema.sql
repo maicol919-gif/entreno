@@ -166,3 +166,74 @@ alter table public.body_weight add constraint body_weight_has_value check (kg is
 alter table public.settings add column if not exists height_cm numeric not null default 172;
 alter table public.settings add column if not exists kcal_target int not null default 2150;
 alter table public.settings add column if not exists protein_target int not null default 148;
+
+-- Alimentación (v2.6): alimentos, recetas y registro de comidas.
+create table public.foods (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null,
+  kcal numeric not null check (kcal >= 0),
+  protein numeric not null check (protein >= 0),
+  carbs numeric not null check (carbs >= 0),
+  fat numeric not null check (fat >= 0),
+  unit_g numeric check (unit_g > 0),
+  unit_label text,
+  unit_plural text,
+  created_at timestamptz not null default now(),
+  unique (user_id, name)
+);
+
+create table public.recipes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null,
+  minutes int not null check (minutes >= 0),
+  meal text not null default 'cualquiera' check (meal in ('desayuno','comida','merienda','cena','cualquiera')),
+  steps text not null default '',
+  tags text[] not null default '{}',
+  servings numeric not null default 1 check (servings > 0),
+  created_at timestamptz not null default now(),
+  unique (user_id, name)
+);
+
+create table public.recipe_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  recipe_id uuid not null references public.recipes(id) on delete cascade,
+  food_id uuid not null references public.foods(id) on delete restrict,
+  grams numeric not null check (grams > 0),
+  position int not null default 0
+);
+create index on public.recipe_items (recipe_id);
+create index on public.recipe_items (food_id);
+
+-- Cada registro guarda una copia de los valores nutricionales: si luego cambias un alimento, el historial no se altera.
+create table public.meal_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  date date not null,
+  meal text not null check (meal in ('desayuno','comida','merienda','cena')),
+  recipe_id uuid references public.recipes(id) on delete set null,
+  food_id uuid references public.foods(id) on delete set null,
+  label text not null,
+  servings numeric check (servings > 0),
+  grams numeric check (grams > 0),
+  kcal numeric not null check (kcal >= 0),
+  protein numeric not null check (protein >= 0),
+  carbs numeric not null default 0 check (carbs >= 0),
+  fat numeric not null default 0 check (fat >= 0),
+  note text,
+  created_at timestamptz not null default now()
+);
+create index on public.meal_log (user_id, date desc);
+create index on public.meal_log (recipe_id);
+create index on public.meal_log (food_id);
+
+alter table public.foods enable row level security;
+alter table public.recipes enable row level security;
+alter table public.recipe_items enable row level security;
+alter table public.meal_log enable row level security;
+create policy "own rows" on public.foods for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "own rows" on public.recipes for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "own rows" on public.recipe_items for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+create policy "own rows" on public.meal_log for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));

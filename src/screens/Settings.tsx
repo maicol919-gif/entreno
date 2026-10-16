@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useData } from '../store'
 
-export default function SettingsTab() {
+export default function SettingsTab({ onOpenGym }: { onOpenGym: () => void }) {
   const { settings, exercises, reload } = useData()
   const [offset, setOffset] = useState(String(settings.week_offset ?? 0))
   const [rest, setRest] = useState(String(settings.rest_seconds))
@@ -15,7 +15,7 @@ export default function SettingsTab() {
   }
 
   async function exportAll() {
-    const tables = ['exercises', 'routine_days', 'routine_items', 'sessions', 'sets', 'session_exercise_notes', 'cardio_logs', 'body_weight', 'settings']
+    const tables = ['exercises', 'routine_days', 'routine_items', 'sessions', 'sets', 'session_exercise_notes', 'cardio_logs', 'body_weight', 'settings', 'foods', 'recipes', 'recipe_items', 'meal_log']
     const out: Record<string, unknown> = {}
     for (const t of tables) out[t] = (await supabase.from(t).select('*')).data
     const blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' })
@@ -54,6 +54,12 @@ export default function SettingsTab() {
         <label>Ajuste de semana (0 = automático; +1 adelanta, −1 retrasa)<input inputMode="numeric" value={offset} onChange={(e) => setOffset(e.target.value)} /></label>
         <label>Descanso entre series (segundos)<input inputMode="numeric" value={rest} onChange={(e) => setRest(e.target.value)} /></label>
         <button onClick={saveSettings}>Guardar</button>
+      </section>
+
+      <section className="card">
+        <h3>Mi gimnasio (Darko)</h3>
+        <p className="muted">Máquinas disponibles y fotos del gimnasio.</p>
+        <button onClick={onOpenGym}>Abrir</button>
       </section>
 
       <section className="card">
