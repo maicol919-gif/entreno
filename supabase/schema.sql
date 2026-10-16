@@ -272,3 +272,7 @@ create policy "own rows" on public.day_marks for all to authenticated
 
 -- Nutrición (1.10): alimentos deshabilitados (se ocultan en buscadores pero siguen existiendo para el historial).
 alter table public.foods add column if not exists disabled boolean not null default false;
+
+-- Nutrición (1.15): peso final y método de cocción de las recetas.
+alter table public.recipes add column if not exists final_weight_g numeric check (final_weight_g > 0);
+alter table public.recipes add column if not exists method text check (method in ('horno','sarten','microondas','olla','plancha','sin_cocinar'));
