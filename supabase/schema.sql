@@ -254,3 +254,18 @@ create policy "meal photos insert own" on storage.objects for insert to authenti
   with check (bucket_id = 'meal-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
 create policy "meal photos delete own" on storage.objects for delete to authenticated
   using (bucket_id = 'meal-photos' and (storage.foldername(name))[1] = (select auth.uid())::text);
+
+-- Alimentación (1.2): valores estimados, días sin registrar y versión de los alimentos iniciales.
+alter table public.foods add column if not exists estimated boolean not null default false;
+alter table public.meal_log add column if not exists kcal_estimated numeric not null default 0 check (kcal_estimated >= 0);
+alter table public.settings add column if not exists food_seed_version int not null default 1;
+
+create table public.day_marks (
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  date date not null,
+  kind text not null default 'sin_registro' check (kind in ('sin_registro')),
+  primary key (user_id, date)
+);
+alter table public.day_marks enable row level security;
+create policy "own rows" on public.day_marks for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
