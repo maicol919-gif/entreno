@@ -276,3 +276,6 @@ alter table public.foods add column if not exists disabled boolean not null defa
 -- Nutrición (1.15): peso final y método de cocción de las recetas.
 alter table public.recipes add column if not exists final_weight_g numeric check (final_weight_g > 0);
 alter table public.recipes add column if not exists method text check (method in ('horno','sarten','microondas','olla','plancha','sin_cocinar'));
+
+-- Nutrición (1.19): otros nombres de un alimento (sinónimos que escribe el usuario, ej. banano, guineo).
+alter table public.foods add column if not exists aliases text[] not null default '{}';
