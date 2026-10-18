@@ -3,6 +3,10 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 2.9 · 2026-10-18
+- Cardio: pregunta "¿Tienes partido pronto?" (sin partido / mañana / pasado mañana). Con partido mañana el tope es nivel suave; pasado mañana, hasta media.
+- Pausa por molestia corregida: tras una molestia no se ofrece el nivel dura y la duración no sube de fase hasta registrar 2 sesiones seguidas sin molestia (en cualquier nivel). Antes el bloqueo no se levantaba solo.
+
 ## 2.8 · 2026-10-17
 - **Comida y Cuerpo se mudaron a su propia app, Nutrición** (https://maicol919-gif.github.io/nutricion/), con la misma cuenta y los mismos datos. Entreno vuelve a ser solo entrenamiento: así un cambio en la alimentación no puede afectar a tu sesión.
 - La pestaña Gimnasio vuelve a la barra, como antes de la 2.6.

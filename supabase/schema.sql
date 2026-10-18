@@ -294,3 +294,6 @@ create policy "own rows" on public.fridge_items for all to authenticated
 
 -- Nutrición (1.28): lo guardado puede estar en la nevera o en el congelador.
 alter table public.fridge_items add column if not exists kind text not null default 'nevera' check (kind in ('nevera','congelador'));
+
+-- Cardio: partido cercano (limita el nivel).
+alter table public.cardio_logs add column if not exists match_soon text check (match_soon in ('no','manana','pasado'));
