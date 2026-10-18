@@ -89,14 +89,17 @@ function cooldown(): Segment {
  */
 export function hardSession(cfg: IntervalConfig, phase: Phase): Segment[] {
   const out: Segment[] = []
-  for (const speed of [5, 6, 7, 8, 9]) out.push(seg('Calentamiento', 60, speed, 1, 'warm'))
   const speeds = [9.5, 9.5, 10.0, cfg.lastBlockSpeed]
   if (phase === 2) {
+    // calentamiento 5-6-7-8 y recuperación antes del primer bloque (misma duración total que antes)
+    for (const speed of [5, 6, 7, 8]) out.push(seg('Calentamiento', 60, speed, 1, 'warm'))
+    out.push(seg('Recuperación antes del bloque 1', 60, REC_SPEED, 1, 'rec'))
     speeds.forEach((v, i) => {
       out.push(seg(`Bloque ${i + 1}`, 240, v, 1, 'fast'))
       out.push(seg(i === 3 ? 'Última recuperación (test de habla)' : `Recuperación ${i + 1}`, 120, REC_SPEED, 1, 'rec'))
     })
   } else {
+    for (const speed of [5, 6, 7, 8, 9]) out.push(seg('Calentamiento', 60, speed, 1, 'warm'))
     const blocks = phase === 0 ? [120, 120, 120, 180] : [180, 180, 180, 300]
     blocks.forEach((sec, i) => {
       out.push(seg(i === 0 ? 'Recuperación antes del bloque 1' : `Recuperación ${i}`, cfg.recoverySec, REC_SPEED, 1, 'rec'))
@@ -108,11 +111,15 @@ export function hardSession(cfg: IntervalConfig, phase: Phase): Segment[] {
   return out
 }
 
-/** MEDIA. Calentamiento 5 min hasta la velocidad del bloque, 3 bloques continuos con 2 min de recuperación, enfriamiento. */
+/**
+ * MEDIA. Calentamiento 5-6-7-8 km/h, 1 min de recuperación a 5,5 antes del primer bloque (así el calentamiento no termina
+ * a la misma velocidad que el bloque), 3 bloques continuos con 2 min de recuperación y enfriamiento.
+ */
 export function mediumSession(cfg: IntervalConfig, phase: Phase): Segment[] {
   const out: Segment[] = []
   const v = cfg.mediumSpeed
-  for (const speed of [5, 6, 7, 8, v]) out.push(seg('Calentamiento', 60, speed, 1, 'warm'))
+  for (const speed of [5, 6, 7, 8]) out.push(seg('Calentamiento', 60, speed, 1, 'warm'))
+  out.push(seg('Recuperación antes del bloque 1', 60, REC_SPEED, 1, 'rec'))
   const blocks = phase === 0 ? [300, 300, 300] : phase === 1 ? [360, 360, 360] : [420, 420, 360]
   blocks.forEach((sec, i) => {
     out.push(seg(i === blocks.length - 1 ? `Bloque ${i + 1} (test de habla en el último minuto)` : `Bloque ${i + 1}`, sec, v, 1, 'fast'))
@@ -242,13 +249,13 @@ export function nextMedium(last: LastInterval | null): NextMedium {
   }
 }
 
-export type MatchSoon = 'no' | 'manana' | 'pasado'
+export type MatchSoon = 'no' | 'hoy' | 'manana'
 
-export const MATCH_LABEL: Record<MatchSoon, string> = { no: 'Sin partido cerca', manana: 'Partido mañana', pasado: 'Partido pasado mañana' }
+export const MATCH_LABEL: Record<MatchSoon, string> = { no: 'Sin partido cerca', hoy: 'Partido hoy', manana: 'Partido mañana' }
 
-/** Tope de nivel por partido: mañana -> solo suave; pasado mañana -> hasta media; sin partido cerca -> sin tope. */
+/** Tope de nivel por partido: hoy o mañana -> solo suave; sin partido cerca -> sin tope. */
 export function matchCap(m: MatchSoon): Level {
-  return m === 'manana' ? 'suave' : m === 'pasado' ? 'media' : 'dura'
+  return m === 'no' ? 'dura' : 'suave'
 }
 
 export interface HoldLog {

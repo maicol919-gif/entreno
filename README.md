@@ -4,7 +4,7 @@ App web instalable (PWA) para llevar un entrenamiento de fuerza con progresión 
 
 ## Qué hace
 
-- **Rutina por número de día** (Día 1 a 5): la app propone el siguiente al último que entrenaste, sin depender del día de la semana. Si te saltas uno, te lo recuerda con un toque para recuperarlo.
+- **Rutina por número de día** (Día 1 a 5): sin depender del día de la semana. Un ciclo se completa al hacer los 5 días en cualquier orden; en Hoy ves cuáles llevas hechos (con fecha) y la app propone el primer día pendiente después del último que entrenaste.
 - **Registro por serie**: repeticiones, peso y **RIR obligatorio** (repeticiones que te quedaban en reserva). Se guarda al instante.
 - **"Última vez" siempre visible** al abrir un ejercicio, con las series, el RIR y tu nota anterior.
 - **Carga base automática** (doble progresión): toma el peso más exigente que repetiste en 2 o más series la última vez y propone una repetición más; si llegaste al tope del rango con el RIR objetivo, propone subir. En ejercicios con ayuda (fondos asistidos) la progresión es bajar la ayuda.

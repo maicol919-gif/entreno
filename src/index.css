@@ -134,3 +134,12 @@ button.next { width: 100%; margin: 4px 0 12px; padding: 16px; font-weight: 700; 
 .levelchip.on { border-color: var(--accent); background: #1d3a29; }
 /* el panel de inclinación/velocidad queda fijo arriba mientras se desplaza la lista de tramos */
 .runcard { position: sticky; top: 0; z-index: 6; box-shadow: 0 6px 14px rgba(0,0,0,.45); }
+
+/* seguimiento de los 5 días del ciclo */
+.daychips { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 6px 0; }
+.daychip { display: grid; gap: 2px; text-align: center; padding: 8px 2px; font-size: .8rem; }
+.daychip span { color: var(--muted); font-size: .7rem; }
+.daychip.done { border-color: var(--accent); }
+.daychip.done span { color: var(--accent); }
+.daychip.sel { background: #232834; outline: 2px solid var(--text); }
+.daychip:disabled { opacity: .6; }

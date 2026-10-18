@@ -27,8 +27,6 @@ async function shrink(file: File, max = 1600): Promise<Blob> {
 
 export default function GymPhotos() {
   const [photos, setPhotos] = useState<Photo[] | null>(null)
-  const [note, setNote] = useState('')
-  const [tags, setTags] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
 
@@ -62,20 +60,17 @@ export default function GymPhotos() {
       const { data: u } = await supabase.auth.getUser()
       const uid = u.user?.id
       if (!uid) throw new Error('Sesión no válida: vuelve a iniciar sesión.')
-      const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean)
       let ok = 0
       for (const [i, f] of files.entries()) {
         const blob = await shrink(f)
         const path = `${uid}/${Date.now()}-${i}.jpg`
         const up = await supabase.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg' })
         if (up.error) throw up.error
-        const ins = await supabase.from('gym_photos').insert({ path, note: note || null, tags: tagList })
+        const ins = await supabase.from('gym_photos').insert({ path })
         if (ins.error) throw ins.error
         ok += 1
       }
       setMsg(`${ok} foto${ok === 1 ? '' : 's'} subida${ok === 1 ? '' : 's'}.`)
-      setNote('')
-      setTags('')
       await load()
     } catch (err) {
       setMsg(err instanceof Error ? err.message : String(err))
@@ -109,14 +104,8 @@ export default function GymPhotos() {
     <section className="card">
       <h3>Fotos del gimnasio</h3>
       <p className="muted">
-        Sube fotos de las máquinas nuevas y cuéntame qué se ve. Son privadas: solo las ves tú. Con ellas se actualiza el catálogo y la rutina.
+        Sube fotos de las máquinas del gimnasio. Son privadas: solo se ven con tu sesión iniciada. Con ellas se actualiza el catálogo y la rutina.
       </p>
-      <label>Nota (opcional)
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Ej.: zona de piernas, máquinas nuevas" />
-      </label>
-      <label>Máquinas que reconoces (opcional, separadas por coma)
-        <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="Ej.: prensa 45°, hack squat" />
-      </label>
       <label className="filebtn">
         {busy ? 'Subiendo…' : '📷 Subir fotos'}
         <input type="file" accept="image/*" multiple disabled={busy} onChange={onFiles} hidden />

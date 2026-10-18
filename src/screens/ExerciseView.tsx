@@ -18,6 +18,24 @@ const LOAD_LABEL: Record<Exercise['load_type'], string> = {
 
 const inflight = new Map<string, Promise<SetRow[]>>()
 
+/** Series que no se pudieron guardar (sin señal). Se reintenta fuera de cualquier pantalla: sigue aunque cambies de ejercicio. */
+const unsaved = new Map<string, SetRow>()
+
+async function saveRow(row: SetRow): Promise<void> {
+  const { error } = await supabase.from('sets').update({ reps: row.reps, load_kg: row.load_kg, rir: row.rir, done: row.done }).eq('id', row.id)
+  if (error) unsaved.set(row.id, row)
+  else unsaved.delete(row.id)
+}
+
+function flushUnsaved() {
+  for (const row of [...unsaved.values()]) void saveRow(row)
+}
+
+if (typeof window !== 'undefined') {
+  window.setInterval(flushUnsaved, 5000)
+  window.addEventListener('online', flushUnsaved)
+}
+
 interface Props {
   exercise: Exercise
   sessionId: string
@@ -41,7 +59,6 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   const [note, setNote] = useState('')
   const { start: startTimer } = useRest()
   const [needRir, setNeedRir] = useState<string | null>(null)
-  const dirty = useRef<Set<string>>(new Set())
   const setsRef = useRef<SetRow[] | null>(null)
   const [pending, setPending] = useState(0)
   const [showGuide, setShowGuide] = useState(false)
@@ -49,6 +66,8 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   const [uncomfortable, setUncomfortable] = useState(false)
   const [reason, setReason] = useState<string | null>(null)
   const [pickReason, setPickReason] = useState(false)
+  const [fb, setFb] = useState<'idle' | 'ask' | 'sent'>('idle')
+  const [fbNote, setFbNote] = useState('')
   const videoId = VIDEOS[exercise.name]
   const guide = GUIDES[exercise.name]
   useEffect(() => {
@@ -102,37 +121,24 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   }, [exercise.id, sessionId, rx.sets, rx.repMin, rx.repMax, rx.rirTarget])
 
   async function save(row: SetRow) {
-    const { error } = await supabase.from('sets').update({ reps: row.reps, load_kg: row.load_kg, rir: row.rir, done: row.done }).eq('id', row.id)
-    if (error) dirty.current.add(row.id)
-    else dirty.current.delete(row.id)
-    setPending(dirty.current.size)
+    await saveRow(row)
+    setPending(unsaved.size)
   }
 
-  // reintenta guardar lo pendiente cuando vuelve la señal
+  // indicador de lo pendiente (el reintento en sí vive fuera del componente)
   useEffect(() => {
-    const retry = () => {
-      for (const id of [...dirty.current]) {
-        const row = setsRef.current?.find((r) => r.id === id)
-        if (row) void save(row)
-        else dirty.current.delete(id)
-      }
-    }
-    const t = window.setInterval(retry, 5000)
-    window.addEventListener('online', retry)
-    return () => {
-      window.clearInterval(t)
-      window.removeEventListener('online', retry)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const t = window.setInterval(() => setPending(unsaved.size), 1000)
+    return () => window.clearInterval(t)
   }, [])
 
   function patch(id: string, p: Partial<SetRow>, persist = false) {
-    setSets((cur) => {
-      if (!cur) return cur
-      const next = cur.map((r) => (r.id === id ? { ...r, ...p } : r))
-      if (persist) void save(next.find((r) => r.id === id)!)
-      return next
-    })
+    const cur = setsRef.current
+    if (!cur) return
+    const next = cur.map((r) => (r.id === id ? { ...r, ...p } : r))
+    setsRef.current = next // síncrono: dos toques seguidos ven siempre el estado más reciente
+    setSets(next)
+    // se guarda aquí y no dentro de setSets: así un cambio de pantalla inmediato no lo cancela
+    if (persist) void save(next.find((r) => r.id === id)!)
   }
 
   function toggleDone(row: SetRow) {
@@ -162,6 +168,11 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
 
   async function saveNote() {
     await supabase.from('session_exercise_notes').upsert({ session_id: sessionId, exercise_id: exercise.id, note })
+  }
+
+  async function sendVideoFeedback() {
+    setFb('sent')
+    await supabase.from('exercise_feedback').insert({ exercise_id: exercise.id, kind: 'video_no_coincide', note: fbNote || null })
   }
 
   async function saveFlag(on: boolean, why: string | null) {
@@ -238,6 +249,21 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
         <a className="btnlink" href={videoSearchUrl(exercise.name, guide?.query)} target="_blank" rel="noreferrer">
           {videoId ? 'Buscar más videos' : '▶ Buscar videos de la técnica'}
         </a>
+        {fb === 'idle' && (
+          <button className="link" onClick={() => setFb('ask')}>El video o la explicación no coinciden</button>
+        )}
+        {fb === 'ask' && (
+          <div>
+            <label>¿Qué es distinto? (opcional)
+              <input value={fbNote} onChange={(e) => setFbNote(e.target.value)} placeholder="Ej.: el video lo hace sentado y yo de pie" />
+            </label>
+            <div className="row">
+              <button onClick={() => void sendVideoFeedback()}>Enviar aviso</button>
+              <button className="link" onClick={() => setFb('idle')}>Cancelar</button>
+            </div>
+          </div>
+        )}
+        {fb === 'sent' && <p className="muted">Gracias: lo reviso y lo corrijo.</p>}
       </section>
 
       <section className="card last">
@@ -270,8 +296,8 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
         {(sets ?? []).map((r) => (
           <div className={`set ${r.done ? 'done' : ''}`} key={r.id}>
             <span>{r.set_number}</span>
-            <input inputMode="numeric" value={r.reps ?? ''} onChange={(e) => patch(r.id, { reps: e.target.value === '' ? null : Number(e.target.value) })} onBlur={() => save(sets!.find((x) => x.id === r.id)!)} />
-            <input inputMode="decimal" value={r.load_kg ?? ''} onChange={(e) => patch(r.id, { load_kg: e.target.value === '' ? null : Number(e.target.value.replace(',', '.')) })} onBlur={() => save(sets!.find((x) => x.id === r.id)!)} />
+            <input inputMode="numeric" value={r.reps ?? ''} onChange={(e) => patch(r.id, { reps: e.target.value === '' ? null : Number(e.target.value) })} onBlur={() => save(setsRef.current!.find((x) => x.id === r.id)!)} />
+            <input inputMode="decimal" value={r.load_kg ?? ''} onChange={(e) => patch(r.id, { load_kg: e.target.value === '' ? null : Number(e.target.value.replace(',', '.')) })} onBlur={() => save(setsRef.current!.find((x) => x.id === r.id)!)} />
             <select className={needRir === r.id ? 'bad' : ''} value={r.rir == null ? '' : Math.min(r.rir, 3)} onChange={(e) => patch(r.id, { rir: e.target.value === '' ? null : Number(e.target.value) }, true)}>
               <option value="">RIR</option>
               {[0, 1, 2, 3].map((n) => <option key={n} value={n}>{n === 3 ? '3+' : n}</option>)}

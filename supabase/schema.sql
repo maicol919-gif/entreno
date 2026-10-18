@@ -296,4 +296,18 @@ create policy "own rows" on public.fridge_items for all to authenticated
 alter table public.fridge_items add column if not exists kind text not null default 'nevera' check (kind in ('nevera','congelador'));
 
 -- Cardio: partido cercano (limita el nivel).
-alter table public.cardio_logs add column if not exists match_soon text check (match_soon in ('no','manana','pasado'));
+alter table public.cardio_logs add column if not exists match_soon text check (match_soon in ('no','hoy','manana'));
+
+-- Avisos de "el video o la explicación no coinciden" (y otros comentarios por ejercicio).
+create table public.exercise_feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  exercise_id uuid not null references public.exercises(id) on delete cascade,
+  kind text not null check (kind in ('video_no_coincide','otro')),
+  note text,
+  created_at timestamptz not null default now()
+);
+create index on public.exercise_feedback (user_id, created_at desc);
+alter table public.exercise_feedback enable row level security;
+create policy "own rows" on public.exercise_feedback for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));

@@ -69,10 +69,13 @@ describe('nivel DURA', () => {
     expect(fast.map((s) => s.sec / 60)).toEqual([3, 3, 3, 5])
     expect(fast.map((s) => s.speed)).toEqual([9.5, 9.5, 10, 10])
   })
-  it('fase 2: 4 bloques de 4 min con recuperación de 2 min', () => {
+  it('fase 2: 4 bloques de 4 min con recuperación de 2 min y descanso antes del primer bloque', () => {
     const segs = hardSession(DEFAULT_CONFIG, 2)
     expect(segs.filter((s) => s.kind === 'fast').map((s) => s.sec / 60)).toEqual([4, 4, 4, 4])
-    expect(segs.filter((s) => s.kind === 'rec').every((s) => s.sec === 120)).toBe(true)
+    expect(segs.slice(0, 4).map((x) => x.speed)).toEqual([5, 6, 7, 8])
+    expect(segs[4]).toMatchObject({ kind: 'rec', speed: 5.5, sec: 60 })
+    const rest = segs.filter((s) => s.kind === 'rec').slice(1)
+    expect(rest.every((s) => s.sec === 120)).toBe(true)
   })
   it('recuperación de 45 s acorta las fases 0 y 1 en 75 s', () => {
     const cfg = { ...DEFAULT_CONFIG, recoverySec: 45 }
@@ -87,10 +90,13 @@ describe('nivel MEDIA', () => {
     const fast = segs.filter((s) => s.kind === 'fast')
     expect(fast).toHaveLength(3)
     expect(fast.every((s) => s.speed === 8.5)).toBe(true)
-    expect(segs.filter((s) => s.kind === 'rec').every((s) => s.sec === 120)).toBe(true)
+    expect(segs.filter((s) => s.kind === 'rec').slice(1).every((s) => s.sec === 120)).toBe(true)
   })
-  it('el calentamiento termina en la velocidad del bloque', () => {
-    expect(mediumSession({ ...DEFAULT_CONFIG, mediumSpeed: 9 }, 0)[4].speed).toBe(9)
+  it('calentamiento 5-6-7-8 y recuperación a 5,5 antes del primer bloque (no termina a la velocidad del bloque)', () => {
+    const segs = mediumSession(DEFAULT_CONFIG, 0)
+    expect(segs.slice(0, 4).map((x) => x.speed)).toEqual([5, 6, 7, 8])
+    expect(segs[4]).toMatchObject({ kind: 'rec', speed: 5.5, sec: 60 })
+    expect(segs[5]).toMatchObject({ kind: 'fast', speed: 8.5 })
   })
 })
 
@@ -213,13 +219,12 @@ describe('pausa por molestia', () => {
 })
 
 describe('partido cerca', () => {
-  it('mañana: solo suave; pasado mañana: hasta media; sin partido: sin tope', () => {
+  it('hoy o mañana: solo suave; sin partido: sin tope', () => {
+    expect(matchCap('hoy')).toBe('suave')
     expect(matchCap('manana')).toBe('suave')
-    expect(matchCap('pasado')).toBe('media')
     expect(matchCap('no')).toBe('dura')
   })
   it('combina con el tope del día', () => {
-    expect(capLevel(capLevel('dura', 'dura'), matchCap('pasado'))).toBe('media')
     expect(capLevel(capLevel('media', 'dura'), matchCap('no'))).toBe('media')
     expect(capLevel(capLevel('dura', 'media'), matchCap('manana'))).toBe('suave')
   })

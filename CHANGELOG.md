@@ -3,6 +3,15 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.0 · 2026-10-18
+- **Ciclos más claros:** un ciclo se completa al hacer los 5 días de la rutina en cualquier orden (un día repetido no cuenta doble). En Hoy ves los 5 días del ciclo con ✓ y la fecha en que hiciste cada uno. El día que se propone es el primer día pendiente después del último que entrenaste.
+- **Terminar sesión avisa qué falta** (series y cardio) y deja "Terminar igual" o "Seguir entrenando".
+- **Corregida la marca ✓ que a veces no quedaba guardada** si cambiabas de pantalla enseguida. Ahora se guarda al tocar y los reintentos siguen aunque cambies de ejercicio.
+- **Cardio:** la pregunta de partido pasa a "Sin partido cerca / Partido hoy / Partido mañana" (hoy o mañana: solo nivel suave).
+- **Cardio, calentamiento:** en el nivel media (y en la fase 3 del nivel dura) el calentamiento va 5-6-7-8 km/h y luego 1 min de recuperación antes del primer bloque, para que no termine a la misma velocidad que el bloque. La duración total no cambia.
+- **Botón "El video o la explicación no coinciden"** en cada ejercicio, para que avises y se corrija.
+- **Fotos del gimnasio:** subir una foto ya no pide nota ni nombres de máquinas.
+
 ## 2.9 · 2026-10-18
 - Cardio: pregunta "¿Tienes partido pronto?" (sin partido / mañana / pasado mañana). Con partido mañana el tope es nivel suave; pasado mañana, hasta media.
 - Pausa por molestia corregida: tras una molestia no se ofrece el nivel dura y la duración no sube de fase hasta registrar 2 sesiones seguidas sin molestia (en cualquier nivel). Antes el bloqueo no se levantaba solo.

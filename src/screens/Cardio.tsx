@@ -62,7 +62,7 @@ const LEVEL_HINT: Record<Level, string> = {
 function MatchChips({ value, onChange }: { value: MatchSoon; onChange: (m: MatchSoon) => void }) {
   return (
     <div className="levels">
-      {(['no', 'manana', 'pasado'] as MatchSoon[]).map((m) => (
+      {(['no', 'hoy', 'manana'] as MatchSoon[]).map((m) => (
         <button key={m} className={`levelchip ${value === m ? 'on' : ''}`} onClick={() => onChange(m)}>
           <strong>{MATCH_LABEL[m]}</strong>
         </button>
@@ -85,7 +85,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const [logs, setLogs] = useState<LogRow[] | null>(null)
   const [feel, setFeel] = useState<LegsFeel | null>(saved.current?.feel ?? null)
   const [levelChoice, setLevelChoice] = useState<Level | null>(null)
-  const [match, setMatch] = useState<MatchSoon>(saved.current?.match ?? 'no')
+  const [match, setMatch] = useState<MatchSoon>(saved.current?.match === 'hoy' || saved.current?.match === 'manana' ? saved.current.match : 'no')
   const [run, setRun] = useState<Run | null>(saved.current)
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<'plan' | 'form'>('plan')
