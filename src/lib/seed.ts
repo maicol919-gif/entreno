@@ -51,6 +51,9 @@ const EX: ExDef[] = [
   { key: 'gemelo', name: 'Elevación gemelo máquina', primary: 'Gemelos', secondary: [], equipment: 'Máquina', load: 'total', incr: 5, reps: [10, 15], note: 'Registra el peso TOTAL (no por lado) para poder compararlo.' },
   { key: 'crunch', name: 'Crunch', primary: 'Abdomen', secondary: [], equipment: 'Peso corporal', load: 'total', incr: 2.5, reps: [12, 15] },
   { key: 'bicicleta', name: 'Abdominales estilo bicicleta', primary: 'Abdomen', secondary: [], equipment: 'Peso corporal', load: 'total', incr: 2.5, reps: [12, 15] },
+  { key: 'perfectSquat', name: 'Sentadilla Perfect Squat', primary: 'Cuádriceps', secondary: ['Glúteos'], equipment: 'Perfect Squat (palanca con discos)', load: 'total', incr: 5, reps: [8, 12], note: 'Máquina guiada con hombreras. Anota siempre igual la carga (total o discos por lado) para poder comparar.' },
+  { key: 'gluteTrainer', name: 'Glute Trainer', primary: 'Glúteos', secondary: ['Isquiotibiales'], equipment: 'Máquina Glute Trainer', load: 'total', incr: 5, reps: [10, 15], note: 'Máquina de glúteo: empuja con el talón, sin arquear la espalda baja.' },
+  { key: 'predicadorZ', name: 'Curl predicador con barra Z', primary: 'Bíceps', secondary: [], equipment: 'Banco predicador + barra Z precargada', load: 'total', incr: 5, reps: [8, 12], note: 'Barras Z precargadas de 10, 15, 20, 25 y 30 kg.' },
 ]
 
 type ItemDef = [key: string, sets: number, repMin: number, repMax: number, rir: number, startWeek?: number]

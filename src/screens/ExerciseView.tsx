@@ -6,6 +6,8 @@ import { suggest, type Suggestion } from '../lib/progression'
 import type { Prescription } from '../lib/plan'
 import { GUIDES, VIDEOS, videoSearchUrl } from '../data/guides'
 import { DISCOMFORT_REASONS, reasonLabel } from '../lib/alternatives'
+import { useData } from '../store'
+import { SIMILAR } from '../data/similar'
 import type { Exercise, PastSession, SetRow } from '../types'
 
 const LOAD_LABEL: Record<Exercise['load_type'], string> = {
@@ -68,6 +70,10 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   const [pickReason, setPickReason] = useState(false)
   const [fb, setFb] = useState<'idle' | 'ask' | 'sent'>('idle')
   const [fbNote, setFbNote] = useState('')
+  const { exercises: allExercises } = useData()
+  const [rating, setRating] = useState<number | null>(null)
+  const [avg, setAvg] = useState<{ avg: number; n: number } | null>(null)
+  const [ref, setRef] = useState<{ name: string; last: PastSession } | null>(null)
   const videoId = VIDEOS[exercise.name]
   const guide = GUIDES[exercise.name]
   useEffect(() => {
@@ -90,7 +96,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
         increment: exercise.min_increment_kg,
       })
       const cur = await supabase.from('sets').select('*').eq('session_id', sessionId).eq('exercise_id', exercise.id).order('set_number')
-      const nt = await supabase.from('session_exercise_notes').select('note,uncomfortable,discomfort_reason').eq('session_id', sessionId).eq('exercise_id', exercise.id).maybeSingle()
+      const nt = await supabase.from('session_exercise_notes').select('note,uncomfortable,discomfort_reason,rating').eq('session_id', sessionId).eq('exercise_id', exercise.id).maybeSingle()
       let rows = (cur.data ?? []) as SetRow[]
       if (rows.length === 0) {
         const key = `${sessionId}:${exercise.id}`
@@ -115,6 +121,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
       setNote(nt.data?.note ?? '')
       setUncomfortable(!!nt.data?.uncomfortable)
       setReason((nt.data?.discomfort_reason as string | null) ?? null)
+      setRating((nt.data?.rating as number | null) ?? null)
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -170,6 +177,31 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
     await supabase.from('session_exercise_notes').upsert({ session_id: sessionId, exercise_id: exercise.id, note })
   }
 
+  // puntuación media de este ejercicio y, si es nuevo, referencia de un ejercicio parecido
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const { data } = await supabase.from('session_exercise_notes').select('rating').eq('exercise_id', exercise.id).not('rating', 'is', null)
+      const rs = (data ?? []).map((r) => Number(r.rating))
+      if (!cancelled) setAvg(rs.length ? { avg: rs.reduce((a, b) => a + b, 0) / rs.length, n: rs.length } : null)
+      const simName = SIMILAR[exercise.name]
+      const sim = simName ? allExercises.find((e) => e.name === simName) : undefined
+      if (sim) {
+        const p = await loadPast(sim.id)
+        if (!cancelled) setRef(p[0] ? { name: sim.name, last: p[0] } : null)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [exercise.id])
+
+  async function saveRating(n: number | null) {
+    setRating(n)
+    await supabase.from('session_exercise_notes').upsert({ session_id: sessionId, exercise_id: exercise.id, note, rating: n })
+  }
+
   async function sendVideoFeedback() {
     setFb('sent')
     await supabase.from('exercise_feedback').insert({ exercise_id: exercise.id, kind: 'video_no_coincide', note: fbNote || null })
@@ -202,6 +234,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
       <p className="muted">
         {exercise.muscle_primary} · {rx.sets} × {rx.repMin}-{rx.repMax} · RIR {rx.rirTarget}
         {rx.label ? ` · ${rx.label}` : ''}
+        {avg ? ` · ★ ${avg.avg.toFixed(1)} (${avg.n})` : ''}
       </p>
       {pending > 0 && <p className="err">Sin conexión: {pending} serie(s) pendientes de guardar. Se reintenta solo.</p>}
       {exercise.fixed_note && <p className="fixed">📌 {exercise.fixed_note}</p>}
@@ -287,6 +320,11 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
             <p className="targets">{sugg.targets.map((t) => `${t.reps}×${t.load_kg ?? '–'}`).join(' · ')}</p>
           )}
           {sugg.kind !== 'new' && <button onClick={useSuggestion}>Usar como base</button>}
+          {sugg.kind === 'new' && ref && (
+            <p className="muted">
+              Referencia: en {ref.name} hiciste {fmtSets(ref.last.sets)} ({fmtDate(ref.last.date)}). Cada máquina carga distinto: empieza un 20-30 % más ligero con 3 repeticiones en reserva y ajusta en la primera serie.
+            </p>
+          )}
         </section>
       )}
 
@@ -333,6 +371,16 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
             <button className="link" onClick={() => saveFlag(false, null)}>Quitar marca</button>
           </p>
         )}
+      </section>
+
+      <section className="card">
+        <h3>¿Qué tal te pareció?</h3>
+        <div className="stars">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} className={rating != null && n <= rating ? 'on' : ''} onClick={() => void saveRating(rating === n ? null : n)} aria-label={`${n} estrellas`}>★</button>
+          ))}
+        </div>
+        <p className="muted">Opcional. Sirve para elegir mejor tus ejercicios en los próximos bloques.</p>
       </section>
 
       <button

@@ -187,6 +187,24 @@ export const GUIDES: Record<string, Guide> = {
     steps: ['Lleva un codo hacia la rodilla contraria mientras estiras la otra pierna.', 'Alterna a ritmo controlado.'],
     errors: ['Tirar del cuello', 'Ir demasiado rápido', 'Despegar la zona lumbar'],
   },
+  'Sentadilla Perfect Squat': {
+    setup: 'Hombros bajo las hombreras y pies en la plataforma a la anchura de los hombros, puntas ligeramente hacia fuera. Espalda recta y abdomen firme.',
+    steps: ['Baja controlado en 2 s hasta que los muslos queden paralelos.', 'Sube empujando con todo el pie, sin bloquear las rodillas.', 'Semanas 1-3 de piernas: termina con 3 o más repeticiones en reserva.'],
+    errors: ['Rodillas hacia dentro', 'Despegar los talones', 'Rango corto o rebotar abajo'],
+    query: 'Perfect Squat máquina sentadilla técnica',
+  },
+  'Glute Trainer': {
+    setup: 'Ajusta la máquina para que el pie quede apoyado en la plataforma y la cadera alineada con el eje del movimiento.',
+    steps: ['Empuja con el talón extendiendo la cadera.', 'Aprieta el glúteo 1 s arriba.', 'Vuelve controlado en 2 s sin soltar tensión.'],
+    errors: ['Arquear la zona lumbar para llegar más lejos', 'Usar impulso', 'Soltar el peso de golpe'],
+    query: 'glute trainer máquina glúteo técnica',
+  },
+  'Curl predicador con barra Z': {
+    setup: 'Brazos apoyados por completo en el cojín del banco predicador, hombros abajo. Barra Z precargada (10, 15, 20, 25 o 30 kg).',
+    steps: ['Sube la barra sin despegar los brazos del cojín.', 'Aprieta el bíceps arriba.', 'Baja en 2-3 s hasta casi extender, sin soltarla de golpe abajo.'],
+    errors: ['Levantar los codos del cojín', 'Rebotar abajo', 'Extender del todo de golpe (riesgo para el tendón del bíceps)'],
+    query: 'curl predicador barra Z técnica',
+  },
 }
 
 export function videoSearchUrl(name: string, query?: string): string {

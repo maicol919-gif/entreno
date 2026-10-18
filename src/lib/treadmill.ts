@@ -258,9 +258,16 @@ export function matchCap(m: MatchSoon): Level {
   return m === 'no' ? 'dura' : 'suave'
 }
 
+export type Severity = 'leve' | 'moderada' | 'fuerte'
+
+export const SEVERITY_LABEL: Record<Severity, string> = { leve: 'Leve, pasajera', moderada: 'Moderada', fuerte: 'Fuerte' }
+
 export interface HoldLog {
   date: string
   discomfort: boolean
+  severity?: Severity | null
+  /** el usuario confirmó que la molestia ya no está */
+  resolved?: boolean
   protocol: { phase?: number } | null
 }
 
@@ -271,20 +278,30 @@ export interface Hold {
   since: string | null
   /** sesiones consecutivas sin molestia desde la última molestia */
   painFree: number
+  /** sesiones sin molestia que hacen falta para levantar la pausa */
+  need: number
+  severity: Severity | null
+  /** se puede preguntar "¿sigue la molestia?" (solo molestias leves aún sin confirmar) */
+  canResolve: boolean
 }
 
-export const HOLD_PAIN_FREE = 2
+/** Sesiones sin molestia necesarias: fuerte 2; moderada (o sin dato) 1; leve se levanta al confirmar que ya no está, o tras 1 sesión. */
+export const painFreeNeeded = (sev: Severity | null | undefined): number => (sev === 'fuerte' ? 2 : 1)
 
 /**
- * Pausa por molestia: tras registrar una molestia, no se ofrece el nivel dura y la duración no sube de fase
- * hasta registrar 2 sesiones seguidas sin molestia (en cualquier nivel). logsDesc va de la más reciente a la más antigua.
+ * Pausa por molestia: tras registrar una molestia no se ofrece el nivel dura y la duración no sube de fase
+ * hasta cumplir lo que pide su gravedad (ver painFreeNeeded). logsDesc va de la más reciente a la más antigua.
  */
 export function discomfortHold(logsDesc: HoldLog[]): Hold {
   const idx = logsDesc.findIndex((l) => l.discomfort)
-  if (idx < 0) return { active: false, phase: 0, since: null, painFree: 0 }
+  if (idx < 0) return { active: false, phase: 0, since: null, painFree: 0, need: 0, severity: null, canResolve: false }
   const l = logsDesc[idx]
+  const severity: Severity = l.severity ?? 'moderada'
+  const need = painFreeNeeded(severity)
   const phase = Math.min(2, Math.max(0, Number(l.protocol?.phase ?? 0))) as Phase
-  return { active: idx < HOLD_PAIN_FREE, phase, since: l.date, painFree: idx }
+  const resolvedMild = severity === 'leve' && !!l.resolved
+  const active = !resolvedMild && idx < need
+  return { active, phase, since: l.date, painFree: idx, need, severity, canResolve: active && severity === 'leve' }
 }
 
 export interface PastCardio {

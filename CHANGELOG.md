@@ -3,6 +3,13 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.1 · 2026-10-18
+- **Tiempo disponible:** en Hoy eliges cuánto tiempo tienes (60–120 min, normalmente 90). La app incluye el cardio y recorta de lo menos importante: primero series de los últimos ejercicios (nunca menos de 2), luego omite los últimos; los 3 principales se respetan.
+- **Molestia con gravedad** (leve / moderada / fuerte) en cardio: una molestia leve que desaparece al calentar no bloquea el nivel dura; moderada o fuerte sí.
+- **Piernas:** la pregunta de cómo están las piernas solo aparece en días de piernas.
+- **Puntuación con estrellas** en cada ejercicio (opcional) y media visible; servirá para rotar ejercicios cada 3 ciclos.
+- **Ejercicios nuevos:** Sentadilla Perfect Squat, Glute Trainer y Curl predicador con barra Z, con guía y referencia de peso desde un ejercicio parecido.
+
 ## 3.0 · 2026-10-18
 - **Ciclos más claros:** un ciclo se completa al hacer los 5 días de la rutina en cualquier orden (un día repetido no cuenta doble). En Hoy ves los 5 días del ciclo con ✓ y la fecha en que hiciste cada uno. El día que se propone es el primer día pendiente después del último que entrenaste.
 - **Terminar sesión avisa qué falta** (series y cardio) y deja "Terminar igual" o "Seguir entrenando".

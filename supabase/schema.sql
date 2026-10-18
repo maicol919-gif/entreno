@@ -311,3 +311,7 @@ create index on public.exercise_feedback (user_id, created_at desc);
 alter table public.exercise_feedback enable row level security;
 create policy "own rows" on public.exercise_feedback for all to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- 3.1: gravedad de la molestia (cardio) y puntuación por ejercicio
+alter table public.cardio_logs add column if not exists discomfort_severity text check (discomfort_severity in ('leve','moderada','fuerte'));
+alter table public.session_exercise_notes add column if not exists rating smallint check (rating between 1 and 5);

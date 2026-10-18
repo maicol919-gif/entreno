@@ -8,7 +8,8 @@ import { readRun } from '../lib/cardioRun'
 import type { Exercise, RoutineItem, Session } from '../types'
 import ExerciseView from './ExerciseView'
 import Cardio from './Cardio'
-import type { LegContext } from '../lib/treadmill'
+import { cardioPhase, levelMinutes, type LegContext } from '../lib/treadmill'
+import { TIME_OPTIONS, fitToTime } from '../lib/timeBudget'
 import { useRest } from '../rest'
 import { useKeepAwake } from '../lib/keepAwake'
 
@@ -38,6 +39,26 @@ const SORENESS_LEVELS: { value: number; label: string; hint: string }[] = [
   { value: 10, label: 'No puedo caminar', hint: 'el dolor me limita casi todo' },
 ]
 
+const BUDGET_KEY = 'entreno.timeBudget'
+
+/** Tiempo disponible elegido hoy (se recuerda solo durante el día). */
+function readBudget(): number | null {
+  try {
+    const v = JSON.parse(localStorage.getItem(BUDGET_KEY) ?? 'null') as { date: string; minutes: number | null } | null
+    return v && v.date === toISODate(new Date()) ? v.minutes : null
+  } catch {
+    return null
+  }
+}
+
+function writeBudget(minutes: number | null) {
+  try {
+    localStorage.setItem(BUDGET_KEY, JSON.stringify({ date: toISODate(new Date()), minutes }))
+  } catch {
+    /* sin almacenamiento: vale solo mientras la pantalla esté abierta */
+  }
+}
+
 function readAck(): string | null {
   try {
     return localStorage.getItem(ACK_KEY)
@@ -55,6 +76,7 @@ export default function Today() {
   const [completed, setCompleted] = useState(0)
   const [cycleDays, setCycleDays] = useState<Record<number, string>>({})
   const [confirmFinish, setConfirmFinish] = useState(false)
+  const [budget, setBudgetState] = useState<number | null>(() => readBudget())
   const touched = useRef(false)
   const autoOpened = useRef(false)
   const [legCtx, setLegCtx] = useState<LegContext>({ yesterday: false, soreness: null })
@@ -245,10 +267,33 @@ export default function Today() {
 
   const cardio = day ? cardioFor(day.weekday, week) : null
 
-  function rxFor(item: RoutineItem, ex: Exercise): Prescription {
+  function baseRx(item: RoutineItem, ex: Exercise): Prescription {
     const p = prescribe(item, ex.muscle_primary, week)
     if (['Cuádriceps', 'Isquiotibiales', 'Glúteos'].includes(ex.muscle_primary)) p.sets = adjustForSoreness(p.sets, lastSoreness)
     return p
+  }
+
+  // tiempo disponible (incluye el cardio): se recortan series y ejercicios de lo menos importante a lo más importante
+  const cardioEstimate = cardio && !cardio.optional ? levelMinutes('media', cardioPhase(week).phase) : 0
+  const timePlan = fitToTime(
+    dayItems.flatMap((item) => {
+      const ex = exById.get(item.exercise_id)
+      return ex ? [{ id: item.id, sets: baseRx(item, ex).sets, position: item.position }] : []
+    }),
+    budget,
+    cardioEstimate,
+  )
+  function rxFor(item: RoutineItem, ex: Exercise): Prescription {
+    const p = baseRx(item, ex)
+    if (budget != null) p.sets = timePlan.sets[item.id] ?? p.sets
+    return p
+  }
+  const activeItems = dayItems.filter((i) => (timePlan.sets[i.id] ?? 1) > 0)
+  const skippedItems = dayItems.filter((i) => (timePlan.sets[i.id] ?? 1) === 0)
+  const totalSets = activeItems.reduce((a, i) => a + (timePlan.sets[i.id] ?? 0), 0)
+  function setBudget(m: number | null) {
+    writeBudget(m)
+    setBudgetState(m)
   }
 
   const trackerDays: Record<number, string> = (() => {
@@ -258,7 +303,7 @@ export default function Today() {
   })()
   const shortDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 
-  const missing = dayItems
+  const missing = activeItems
     .map((item) => {
       const ex = exById.get(item.exercise_id)
       return ex ? { name: ex.name, done: doneCount[ex.id] ?? 0, sets: rxFor(item, ex).sets } : null
@@ -270,8 +315,8 @@ export default function Today() {
   if (openItem && session) {
     const ex = exById.get(openItem.exercise_id)
     if (!ex) return null
-    const idx = dayItems.findIndex((i) => i.id === openItem.id)
-    const nextItem = idx >= 0 ? dayItems[idx + 1] ?? null : null
+    const idx = activeItems.findIndex((i) => i.id === openItem.id)
+    const nextItem = idx >= 0 ? activeItems[idx + 1] ?? null : null
     const nextEx = nextItem ? exById.get(nextItem.exercise_id) : null
     const flag = flags[ex.id] ?? null
     return (
@@ -331,7 +376,7 @@ export default function Today() {
         </section>
       )}
 
-      {pendingSoreness && (
+      {pendingSoreness && !!day?.name.startsWith('Pierna') && (
         <section className="card warn">
           <h3>¿Qué tan adoloridas están tus piernas?</h3>
           <p className="muted">Sesión del {pendingSoreness.date}. Mide el dolor muscular (agujetas): más alto = más dolor, no cómo de bien te sentiste.</p>
@@ -380,14 +425,41 @@ export default function Today() {
       {day && (
         <section className="card">
           <h3>{day.name}</h3>
-          {!session && <button className="primary" onClick={start}>Empezar sesión</button>}
+          {!session && (
+            <>
+              <p className="muted">¿Cuánto tiempo tienes hoy? (incluye el cardio)</p>
+              <div className="timechips">
+                {TIME_OPTIONS.map((m) => (
+                  <button key={m} className={`levelchip ${budget === m ? 'on' : ''}`} onClick={() => setBudget(m)}>
+                    <strong>{m} min</strong>
+                  </button>
+                ))}
+                <button className={`levelchip ${budget == null ? 'on' : ''}`} onClick={() => setBudget(null)}>
+                  <strong>Sin límite</strong>
+                </button>
+              </div>
+              <p className="muted">
+                {budget == null
+                  ? `Rutina completa: ${totalSets} series · ≈${timePlan.totalMin} min con cardio.`
+                  : `Para ${budget} min: ${totalSets} series en ${activeItems.length} ejercicios${timePlan.trimmed ? ' (recortado)' : ''} · cardio ${timePlan.cardioMin} min · ≈${timePlan.totalMin} min.`}
+              </p>
+              {skippedItems.length > 0 && (
+                <p className="muted">
+                  Se omiten por tiempo: {skippedItems.map((i) => exById.get(i.exercise_id)?.name).filter(Boolean).join(', ')}.
+                </p>
+              )}
+              {timePlan.overBudget && <p className="fixed">Aun recortando, esta rutina pide más de {budget} min. Puedes empezar igual y terminar cuando debas.</p>}
+              <button className="primary" onClick={start}>Empezar sesión</button>
+            </>
+          )}
+          {session && budget != null && session.status === 'in_progress' && <p className="muted">Plan para {budget} min · ≈{timePlan.totalMin} min con cardio.</p>}
           {session?.status === 'done' && <p className="ok">Sesión terminada ✔ <button className="link" onClick={reopen}>reabrir</button></p>}
         </section>
       )}
 
       {day && session && (
         <>
-          {dayItems.map((item) => {
+          {activeItems.map((item) => {
             const ex = exById.get(item.exercise_id)
             if (!ex) return null
             const rx = rxFor(item, ex)

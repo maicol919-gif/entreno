@@ -7,6 +7,7 @@ import {
   EFFORT_LEVELS,
   LEVEL_LABEL,
   MATCH_LABEL,
+  SEVERITY_LABEL,
   SPEECH_PHRASE,
   buildSession,
   capLevel,
@@ -28,6 +29,7 @@ import {
   type LegsFeel,
   type Level,
   type MatchSoon,
+  type Severity,
   type PastCardio,
   type Segment,
   type SpeechTest,
@@ -35,6 +37,9 @@ import {
 import { beep, useRest } from '../rest'
 
 interface LogRow extends PastCardio {
+  id: string
+  discomfort_severity: Severity | null
+  resolved_at: string | null
   minutes: number
   speech_test: SpeechTest | null
   discomfort: boolean
@@ -93,6 +98,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const [speech, setSpeech] = useState<SpeechTest | null>(null)
   const [effort, setEffort] = useState<number | null>(null)
   const [discomfort, setDiscomfort] = useState(false)
+  const [severity, setSeverity] = useState<Severity | null>(null)
   const [note, setNote] = useState('')
   const [err, setErr] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -107,7 +113,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   useEffect(() => {
     void supabase
       .from('cardio_logs')
-      .select('date,kind,minutes,speech_test,discomfort,protocol,created_at')
+      .select('id,date,kind,minutes,speech_test,discomfort,protocol,created_at,discomfort_severity,resolved_at')
       .gte('date', toISODate(new Date(Date.now() - 60 * 86400000)))
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
@@ -122,7 +128,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const nextMed = useMemo(() => nextMedium(lastOf('media')), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
   const warnings = useMemo(() => intervalWarnings(logs ?? [], today, sevenDaysAgo()), [logs, today])
   const hints = useMemo(() => legHints(legCtx), [legCtx])
-  const hold = useMemo(() => discomfortHold((logs ?? []).map((l) => ({ date: l.date, discomfort: l.discomfort, protocol: l.protocol }))), [logs])
+  const hold = useMemo(() => discomfortHold((logs ?? []).map((l) => ({ date: l.date, discomfort: l.discomfort, severity: l.discomfort_severity, resolved: !!l.resolved_at, protocol: l.protocol }))), [logs])
 
   // tope efectivo: el del día, el de la pausa por molestia (sin nivel dura) y el del partido
   const capEff: Level = capLevel(capLevel(plan.cap, hold.active ? 'media' : 'dura'), matchCap(match))
@@ -186,6 +192,15 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
     if (finished) setPhase('form')
   }, [finished])
 
+  /** Molestia leve que ya pasó: se levanta la pausa sin esperar otra sesión. */
+  async function resolveHold() {
+    const target = (logs ?? []).find((l) => l.discomfort)
+    if (!target) return
+    const when = new Date().toISOString()
+    const { error } = await supabase.from('cardio_logs').update({ resolved_at: when }).eq('id', target.id)
+    if (!error) setLogs((cur) => (cur ?? []).map((l) => (l.id === target.id ? { ...l, resolved_at: when } : l)))
+  }
+
   function begin() {
     if (!feel || !level) return
     clearRest()
@@ -218,6 +233,10 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
       setErr('Haz el test de habla y elige el resultado.')
       return
     }
+    if (discomfort && !severity) {
+      setErr('Indica qué tan fuerte fue la molestia.')
+      return
+    }
     savingRef.current = true
     setSaving(true)
     setErr(null)
@@ -236,6 +255,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
       rpe: effort,
       speech_test: needsSpeech ? speech : null,
       discomfort,
+      discomfort_severity: discomfort ? severity : null,
       protocol,
       legs_feel: run.feel,
       match_soon: run.match ?? 'no',
@@ -350,6 +370,18 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
             <input type="checkbox" checked={discomfort} onChange={(e) => setDiscomfort(e.target.checked)} />
             <span>Molestia en tobillo / tendón / articulaciones</span>
           </label>
+          {discomfort && (
+            <>
+              <p className="muted">¿Qué tan fuerte fue?</p>
+              <div className="levels">
+                {(['leve', 'moderada', 'fuerte'] as Severity[]).map((sv) => (
+                  <button key={sv} className={`levelchip ${severity === sv ? 'on' : ''}`} onClick={() => setSeverity(sv)}>
+                    <strong>{SEVERITY_LABEL[sv]}</strong>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
           <label>Nota<textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></label>
           {err && <p className="err">{err}</p>}
           <button className="primary" onClick={save} disabled={saving || done}>{done ? 'Guardado ✓' : saving ? 'Guardando…' : 'Guardar cardio'}</button>
@@ -391,9 +423,21 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
           <MatchChips value={match} onChange={setMatch} />
           {match !== 'no' && <p className="muted">{MATCH_LABEL[match]}: hoy el tope es nivel {LEVEL_LABEL[matchCap(match)].toUpperCase()}.</p>}
           {hold.active && (
-            <p className="fixed">
-              Molestia registrada el {hold.since}: sin nivel DURA y sin subir de fase hasta tener 2 sesiones seguidas sin molestia (llevas {hold.painFree} de 2).
-            </p>
+            <div className="fixed">
+              <p>
+                Molestia {hold.severity} registrada el {hold.since}: sin nivel DURA y sin subir de fase hasta {hold.need} sesión(es) sin molestia (llevas {hold.painFree} de {hold.need}).
+                {hold.severity === 'fuerte' ? ' Si sigue o empeora, consulta a un fisioterapeuta.' : ''}
+              </p>
+              {hold.canResolve && (
+                <div>
+                  <p>¿Sigue la molestia?</p>
+                  <div className="row">
+                    <button onClick={() => void resolveHold()}>Ya no hay molestia</button>
+                    <button className="link">Sigue</button>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           <div className="levels">

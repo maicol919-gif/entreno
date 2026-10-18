@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_CONFIG,
-  HOLD_PAIN_FREE,
   LEVEL_MINUTES,
   buildSession,
   capLevel,
@@ -195,22 +194,37 @@ describe('advertencias y datos informativos', () => {
 })
 
 describe('pausa por molestia', () => {
-  const log = (discomfort: boolean, phase?: number) => ({ date: '2026-10-10', discomfort, protocol: phase == null ? null : { phase } })
+  const log = (discomfort: boolean, phase?: number, severity?: 'leve' | 'moderada' | 'fuerte', resolved = false) => ({
+    date: '2026-10-10',
+    discomfort,
+    severity,
+    resolved,
+    protocol: phase == null ? null : { phase },
+  })
   it('sin molestias registradas: sin pausa', () => {
     expect(discomfortHold([log(false), log(false)]).active).toBe(false)
   })
-  it('molestia en la última sesión: pausa, con 0 sesiones sin molestia', () => {
-    const h = discomfortHold([log(true, 1), log(false)])
-    expect(h).toMatchObject({ active: true, painFree: 0, phase: 1 })
+  it('molestia moderada (o sin gravedad guardada) en la última sesión: pausa hasta 1 sesión sin molestia', () => {
+    expect(discomfortHold([log(true, 1, 'moderada'), log(false)])).toMatchObject({ active: true, painFree: 0, need: 1, phase: 1 })
+    expect(discomfortHold([log(true)]).need).toBe(1)
+    expect(discomfortHold([log(false), log(true, 1, 'moderada')]).active).toBe(false)
   })
-  it('una sesión sin molestia después: sigue la pausa (1 de 2)', () => {
-    expect(discomfortHold([log(false), log(true, 2)])).toMatchObject({ active: true, painFree: 1, phase: 2 })
+  it('molestia fuerte: hacen falta 2 sesiones sin molestia', () => {
+    expect(discomfortHold([log(false), log(true, 2, 'fuerte')])).toMatchObject({ active: true, painFree: 1, need: 2, phase: 2 })
+    expect(discomfortHold([log(false), log(false), log(true, 0, 'fuerte')]).active).toBe(false)
   })
-  it('dos sesiones sin molestia después: se levanta la pausa', () => {
-    expect(HOLD_PAIN_FREE).toBe(2)
-    expect(discomfortHold([log(false), log(false), log(true)]).active).toBe(false)
+  it('molestia leve: se levanta al confirmar que ya no está, sin esperar otra sesión', () => {
+    const pending = discomfortHold([log(true, 1, 'leve')])
+    expect(pending).toMatchObject({ active: true, canResolve: true })
+    const confirmed = discomfortHold([log(true, 1, 'leve', true)])
+    expect(confirmed.active).toBe(false)
+    expect(confirmed.canResolve).toBe(false)
   })
-  it('tu caso: molestia el 13, luego 3 sesiones sin molestia -> sin pausa', () => {
+  it('solo las molestias leves permiten la pregunta "¿sigue?"', () => {
+    expect(discomfortHold([log(true, 0, 'moderada')]).canResolve).toBe(false)
+    expect(discomfortHold([log(true, 0, 'fuerte')]).canResolve).toBe(false)
+  })
+  it('tu caso: molestia el 13 (sin gravedad guardada), luego 3 sesiones sin molestia -> sin pausa', () => {
     expect(discomfortHold([log(false), log(false), log(false), log(true)]).active).toBe(false)
   })
   it('sin fase guardada (versión anterior) cuenta como fase 0', () => {
