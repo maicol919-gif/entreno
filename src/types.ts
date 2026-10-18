@@ -32,6 +32,8 @@ export interface RoutineItem {
   rir_target: number
   start_week: number
   note: string | null
+  /** null = ejercicio fijo; A/B/C = opción que rota cada 3 ciclos */
+  block: 'A' | 'B' | 'C' | null
 }
 
 export interface Session {

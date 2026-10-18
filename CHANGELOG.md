@@ -3,6 +3,11 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.2 · 2026-10-18
+- **Rotación de ejercicios cada 3 ciclos (bloques A → B → C → A…).** Los 3 ejercicios principales de cada día no cambian; los accesorios (remo, hombro posterior, tríceps, bíceps, gemelo, abdomen…) rotan entre 3 opciones. El bloque A es tu rutina de siempre. En Hoy ves el bloque actual y en qué ciclo cambia.
+- Si una opción del bloque está marcada como no disponible en Gimnasio, se usa la del bloque A en ese hueco.
+- 19 ejercicios nuevos con guía (Remo Hammer, Pec deck inverso, Face pull, Zancada Smith, Gemelo en prensa/Smith, Plancha, Abductor, Aperturas en polea…) y referencia de peso desde un ejercicio parecido.
+
 ## 3.1 · 2026-10-18
 - **Tiempo disponible:** en Hoy eliges cuánto tiempo tienes (60–120 min, normalmente 90). La app incluye el cardio y recorta de lo menos importante: primero series de los últimos ejercicios (nunca menos de 2), luego omite los últimos; los 3 principales se respetan.
 - **Molestia con gravedad** (leve / moderada / fuerte) en cardio: una molestia leve que desaparece al calentar no bloquea el nivel dura; moderada o fuerte sí.

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useData } from '../store'
 import { adjustForSoreness, cardioFor, prescribe, toISODate, type Prescription } from '../lib/plan'
+import { blockFor, itemsForBlock, nextBlockStart } from '../lib/rotation'
 import { computeCycles, nextPendingDay, type CycleSession } from '../lib/cycles'
 import { alternatives } from '../lib/alternatives'
 import { readRun } from '../lib/cardioRun'
@@ -186,7 +187,8 @@ export default function Today() {
     void refresh()
   }, [refresh, openItem, openCardio])
 
-  const dayItems = items.filter((i) => i.day_id === dayId && i.start_week <= week).sort((a, b) => a.position - b.position)
+  const block = blockFor(week)
+  const dayItems = itemsForBlock(items, exercises, block).filter((i) => i.day_id === dayId && i.start_week <= week).sort((a, b) => a.position - b.position)
   const dayExerciseKey = dayItems.map((i) => i.exercise_id).join(',')
   const sessionId = session?.id ?? null
 
@@ -354,7 +356,7 @@ export default function Today() {
   return (
     <div className="screen">
       <h2>{day ? `Día ${day.weekday} · ${day.name}` : 'Descanso'}</h2>
-      <p className="muted">Ciclo {week} · toca el siguiente día de tu rutina, sin importar la fecha.</p>
+      <p className="muted">Ciclo {week} · Bloque {block} (cambia en el ciclo {nextBlockStart(week)}) · toca el siguiente día de tu rutina, sin importar la fecha.</p>
 
       {!session && completed >= 1 && Object.keys(cycleDays).length === 0 && (
         <section className="card last">

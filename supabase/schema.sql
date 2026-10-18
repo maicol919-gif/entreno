@@ -315,3 +315,6 @@ create policy "own rows" on public.exercise_feedback for all to authenticated
 -- 3.1: gravedad de la molestia (cardio) y puntuación por ejercicio
 alter table public.cardio_logs add column if not exists discomfort_severity text check (discomfort_severity in ('leve','moderada','fuerte'));
 alter table public.session_exercise_notes add column if not exists rating smallint check (rating between 1 and 5);
+
+-- 3.2: rotación por bloques (null = ejercicio fijo; A/B/C = opción que rota cada 3 ciclos)
+alter table public.routine_items add column if not exists block text check (block in ('A','B','C'));
