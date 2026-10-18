@@ -180,13 +180,6 @@ export function nextInterval(last: LastInterval | null): NextInterval {
     }
   }
   const prev: IntervalConfig = { ...DEFAULT_CONFIG, ...last.protocol }
-  if (last.discomfort) {
-    return {
-      config: prev,
-      message: 'La última sesión dejó molestia (tobillo/tendón). Hoy mejor un nivel suave; si haces intervalos, mismos parámetros que la vez pasada.',
-      suggestSoft: true,
-    }
-  }
   if (last.speech_test === 'mitad') {
     const v = Math.max(9.0, Math.round((prev.lastBlockSpeed - 0.5) * 10) / 10)
     return {
@@ -234,9 +227,6 @@ export function nextMedium(last: LastInterval | null): NextMedium {
   }
   const prev = last.protocol?.mediumSpeed ?? base
   const [lo, hi] = MEDIUM_SPEED_RANGE
-  if (last.discomfort) {
-    return { mediumSpeed: prev, message: 'La última sesión dejó molestia. Hoy mejor un nivel suave; si haces la media, misma velocidad.', suggestSoft: true }
-  }
   if (last.speech_test === 'entera') {
     const v = Math.min(hi, prev + 0.5)
     return { mediumSpeed: v, message: `Frase entera: estaba fácil. Sube a ${v.toFixed(1)} km/h.`, suggestSoft: false }
@@ -250,6 +240,44 @@ export function nextMedium(last: LastInterval | null): NextMedium {
     message: last.speech_test === 'dos' ? `Frase partida en dos: correcto. Repite a ${prev.toFixed(1)} km/h.` : `Repite a ${prev.toFixed(1)} km/h y haz el test de habla en el último bloque.`,
     suggestSoft: false,
   }
+}
+
+export type MatchSoon = 'no' | 'manana' | 'pasado'
+
+export const MATCH_LABEL: Record<MatchSoon, string> = { no: 'Sin partido cerca', manana: 'Partido mañana', pasado: 'Partido pasado mañana' }
+
+/** Tope de nivel por partido: mañana -> solo suave; pasado mañana -> hasta media; sin partido cerca -> sin tope. */
+export function matchCap(m: MatchSoon): Level {
+  return m === 'manana' ? 'suave' : m === 'pasado' ? 'media' : 'dura'
+}
+
+export interface HoldLog {
+  date: string
+  discomfort: boolean
+  protocol: { phase?: number } | null
+}
+
+export interface Hold {
+  active: boolean
+  /** fase máxima mientras dura la pausa (la de la sesión que dejó molestia) */
+  phase: Phase
+  since: string | null
+  /** sesiones consecutivas sin molestia desde la última molestia */
+  painFree: number
+}
+
+export const HOLD_PAIN_FREE = 2
+
+/**
+ * Pausa por molestia: tras registrar una molestia, no se ofrece el nivel dura y la duración no sube de fase
+ * hasta registrar 2 sesiones seguidas sin molestia (en cualquier nivel). logsDesc va de la más reciente a la más antigua.
+ */
+export function discomfortHold(logsDesc: HoldLog[]): Hold {
+  const idx = logsDesc.findIndex((l) => l.discomfort)
+  if (idx < 0) return { active: false, phase: 0, since: null, painFree: 0 }
+  const l = logsDesc[idx]
+  const phase = Math.min(2, Math.max(0, Number(l.protocol?.phase ?? 0))) as Phase
+  return { active: idx < HOLD_PAIN_FREE, phase, since: l.date, painFree: idx }
 }
 
 export interface PastCardio {

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_CONFIG,
+  HOLD_PAIN_FREE,
   LEVEL_MINUTES,
   buildSession,
   capLevel,
   cardioPhase,
+  discomfortHold,
   easyWalk,
   hardSession,
   intervalWarnings,
@@ -13,6 +15,7 @@ import {
   levelFor,
   levelMinutes,
   locate,
+  matchCap,
   mediumSession,
   nextInterval,
   nextMedium,
@@ -144,8 +147,8 @@ describe('progresión nivel DURA (una sola variable)', () => {
   it('no pasa de la mitad: baja 0,5 km/h el último bloque', () => {
     expect(nextInterval({ protocol: {}, speech_test: 'mitad', discomfort: false }).config.lastBlockSpeed).toBe(9.5)
   })
-  it('molestia: sugiere nivel suave', () => {
-    expect(nextInterval({ protocol: null, speech_test: 'entera', discomfort: true }).suggestSoft).toBe(true)
+  it('la molestia ya no bloquea aquí: la regla es global (discomfortHold)', () => {
+    expect(nextInterval({ protocol: null, speech_test: 'dos', discomfort: true }).suggestSoft).toBe(false)
   })
 })
 
@@ -163,8 +166,8 @@ describe('progresión nivel MEDIA', () => {
     expect(nextMedium({ protocol: { mediumSpeed: 9.5 }, speech_test: 'entera', discomfort: false }).mediumSpeed).toBe(9.5)
     expect(nextMedium({ protocol: { mediumSpeed: 7.5 }, speech_test: 'mitad', discomfort: false }).mediumSpeed).toBe(7.5)
   })
-  it('molestia: sugiere nivel suave', () => {
-    expect(nextMedium({ protocol: null, speech_test: null, discomfort: true }).suggestSoft).toBe(true)
+  it('la molestia ya no bloquea aquí: la regla es global (discomfortHold)', () => {
+    expect(nextMedium({ protocol: null, speech_test: null, discomfort: true }).suggestSoft).toBe(false)
   })
 })
 
@@ -182,5 +185,42 @@ describe('advertencias y datos informativos', () => {
   it('legHints solo informa', () => {
     expect(legHints({ yesterday: false, soreness: null })).toEqual([])
     expect(legHints({ yesterday: true, soreness: 9 })).toHaveLength(2)
+  })
+})
+
+describe('pausa por molestia', () => {
+  const log = (discomfort: boolean, phase?: number) => ({ date: '2026-10-10', discomfort, protocol: phase == null ? null : { phase } })
+  it('sin molestias registradas: sin pausa', () => {
+    expect(discomfortHold([log(false), log(false)]).active).toBe(false)
+  })
+  it('molestia en la última sesión: pausa, con 0 sesiones sin molestia', () => {
+    const h = discomfortHold([log(true, 1), log(false)])
+    expect(h).toMatchObject({ active: true, painFree: 0, phase: 1 })
+  })
+  it('una sesión sin molestia después: sigue la pausa (1 de 2)', () => {
+    expect(discomfortHold([log(false), log(true, 2)])).toMatchObject({ active: true, painFree: 1, phase: 2 })
+  })
+  it('dos sesiones sin molestia después: se levanta la pausa', () => {
+    expect(HOLD_PAIN_FREE).toBe(2)
+    expect(discomfortHold([log(false), log(false), log(true)]).active).toBe(false)
+  })
+  it('tu caso: molestia el 13, luego 3 sesiones sin molestia -> sin pausa', () => {
+    expect(discomfortHold([log(false), log(false), log(false), log(true)]).active).toBe(false)
+  })
+  it('sin fase guardada (versión anterior) cuenta como fase 0', () => {
+    expect(discomfortHold([log(true)]).phase).toBe(0)
+  })
+})
+
+describe('partido cerca', () => {
+  it('mañana: solo suave; pasado mañana: hasta media; sin partido: sin tope', () => {
+    expect(matchCap('manana')).toBe('suave')
+    expect(matchCap('pasado')).toBe('media')
+    expect(matchCap('no')).toBe('dura')
+  })
+  it('combina con el tope del día', () => {
+    expect(capLevel(capLevel('dura', 'dura'), matchCap('pasado'))).toBe('media')
+    expect(capLevel(capLevel('media', 'dura'), matchCap('no'))).toBe('media')
+    expect(capLevel(capLevel('dura', 'media'), matchCap('manana'))).toBe('suave')
   })
 })

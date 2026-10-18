@@ -6,16 +6,19 @@ import { readRun, writeRun, type Run } from '../lib/cardioRun'
 import {
   EFFORT_LEVELS,
   LEVEL_LABEL,
+  MATCH_LABEL,
   SPEECH_PHRASE,
   buildSession,
   capLevel,
   cardioPhase,
+  discomfortHold,
   intervalWarnings,
   kindOf,
   legHints,
   levelFor,
   levelMinutes,
   locate,
+  matchCap,
   nextInterval,
   nextMedium,
   totalSeconds,
@@ -24,6 +27,7 @@ import {
   type LegContext,
   type LegsFeel,
   type Level,
+  type MatchSoon,
   type PastCardio,
   type Segment,
   type SpeechTest,
@@ -55,6 +59,18 @@ const LEVEL_HINT: Record<Level, string> = {
   suave: 'Caminata en cuesta (esfuerzo 3-4)',
 }
 
+function MatchChips({ value, onChange }: { value: MatchSoon; onChange: (m: MatchSoon) => void }) {
+  return (
+    <div className="levels">
+      {(['no', 'manana', 'pasado'] as MatchSoon[]).map((m) => (
+        <button key={m} className={`levelchip ${value === m ? 'on' : ''}`} onClick={() => onChange(m)}>
+          <strong>{MATCH_LABEL[m]}</strong>
+        </button>
+      ))}
+    </div>
+  )
+}
+
 interface Props {
   plan: CardioPlan
   sessionId: string
@@ -69,6 +85,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const [logs, setLogs] = useState<LogRow[] | null>(null)
   const [feel, setFeel] = useState<LegsFeel | null>(saved.current?.feel ?? null)
   const [levelChoice, setLevelChoice] = useState<Level | null>(null)
+  const [match, setMatch] = useState<MatchSoon>(saved.current?.match ?? 'no')
   const [run, setRun] = useState<Run | null>(saved.current)
   const [now, setNow] = useState(() => Date.now())
   const [phase, setPhase] = useState<'plan' | 'form'>('plan')
@@ -90,9 +107,10 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   useEffect(() => {
     void supabase
       .from('cardio_logs')
-      .select('date,kind,minutes,speech_test,discomfort,protocol')
+      .select('date,kind,minutes,speech_test,discomfort,protocol,created_at')
       .gte('date', toISODate(new Date(Date.now() - 60 * 86400000)))
       .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
       .then(({ data }) => setLogs((data ?? []) as LogRow[]))
   }, [])
 
@@ -104,16 +122,21 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const nextMed = useMemo(() => nextMedium(lastOf('media')), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
   const warnings = useMemo(() => intervalWarnings(logs ?? [], today, sevenDaysAgo()), [logs, today])
   const hints = useMemo(() => legHints(legCtx), [legCtx])
+  const hold = useMemo(() => discomfortHold((logs ?? []).map((l) => ({ date: l.date, discomfort: l.discomfort, protocol: l.protocol }))), [logs])
 
-  // nivel recomendado: según las piernas, con el tope del día y las reglas de descanso para el nivel duro
-  const baseLevel = feel ? capLevel(levelFor(feel), plan.cap) : null
-  const hardBlocked = baseLevel === 'dura' && (warnings.length > 0 || nextHard.suggestSoft)
+  // tope efectivo: el del día, el de la pausa por molestia (sin nivel dura) y el del partido
+  const capEff: Level = capLevel(capLevel(plan.cap, hold.active ? 'media' : 'dura'), matchCap(match))
+  // mientras haya pausa por molestia la duración no sube de la fase en que ocurrió
+  const phaseEff = hold.active ? (Math.min(cp.phase, hold.phase) as typeof cp.phase) : cp.phase
+  // nivel recomendado: según las piernas, con el tope y las reglas de descanso para el nivel duro
+  const baseLevel = feel ? capLevel(levelFor(feel), capEff) : null
+  const hardBlocked = baseLevel === 'dura' && warnings.length > 0
   const recommended: Level | null = baseLevel ? (hardBlocked ? 'suave' : baseLevel) : null
   const level: Level | null = run?.level ?? levelChoice ?? recommended
 
   const reduced = run?.reduced ?? (feel === 'cargadas' && level === 'suave')
   const cfg: IntervalConfig = run?.cfg ?? { ...nextHard.config, mediumSpeed: nextMed.mediumSpeed }
-  const ph = run?.phase ?? cp.phase
+  const ph = run?.phase ?? phaseEff
   const segs: Segment[] = useMemo(() => (level ? buildSession(level, ph, cfg, reduced) : []), [level, ph, cfg, reduced])
   const total = totalSeconds(segs)
 
@@ -167,7 +190,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
     if (!feel || !level) return
     clearRest()
     lastIndex.current = -1
-    const r: Run = { start: Date.now(), level, phase: cp.phase, cfg, reduced, sessionId, feel }
+    const r: Run = { start: Date.now(), level, phase: phaseEff, cfg, reduced, sessionId, feel, match }
     setNow(r.start)
     setRun(r)
     writeRun(r)
@@ -215,6 +238,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
       discomfort,
       protocol,
       legs_feel: run.feel,
+      match_soon: run.match ?? 'no',
       note: note || null,
     })
     setSaving(false)
@@ -352,6 +376,8 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
               <strong>{o.label}</strong> <span className="muted">· {o.hint}</span>
             </button>
           ))}
+          <h3>¿Tienes partido pronto?</h3>
+          <MatchChips value={match} onChange={setMatch} />
           {plan.cap !== 'dura' && <p className="muted">Hoy el tope es nivel {LEVEL_LABEL[plan.cap].toUpperCase()}{plan.optional ? ' y el cardio es opcional' : ''}.</p>}
         </section>
       )}
@@ -362,18 +388,26 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
             Piernas {feel}. <button className="link" onClick={() => { setFeel(null); setLevelChoice(null) }}>Cambiar</button>
           </p>
 
+          <MatchChips value={match} onChange={setMatch} />
+          {match !== 'no' && <p className="muted">{MATCH_LABEL[match]}: hoy el tope es nivel {LEVEL_LABEL[matchCap(match)].toUpperCase()}.</p>}
+          {hold.active && (
+            <p className="fixed">
+              Molestia registrada el {hold.since}: sin nivel DURA y sin subir de fase hasta tener 2 sesiones seguidas sin molestia (llevas {hold.painFree} de 2).
+            </p>
+          )}
+
           <div className="levels">
             {(['dura', 'media', 'suave'] as Level[]).map((l) => (
               <button key={l} className={`levelchip ${level === l ? 'on' : ''}`} onClick={() => setLevelChoice(l)}>
                 <strong>{LEVEL_LABEL[l]}</strong>
-                <span>{levelMinutes(l, cp.phase)} min</span>
+                <span>{levelMinutes(l, phaseEff)} min</span>
                 {recommended === l && <small>recomendado</small>}
               </button>
             ))}
           </div>
           <p className="muted">
             {LEVEL_HINT[level]}.{' '}
-            {cp.deload ? 'Semana de descarga: duraciones de la fase 1.' : `Fase ${cp.phase + 1} de 3 del ciclo.`}
+            {cp.deload ? 'Semana de descarga: duraciones de la fase 1.' : `Fase ${phaseEff + 1} de 3 del ciclo${hold.active && phaseEff < cp.phase ? ' (en pausa por la molestia)' : ''}.`}
           </p>
 
           {logs === null && <p className="muted">Cargando…</p>}

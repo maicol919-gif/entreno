@@ -1,4 +1,4 @@
-import type { IntervalConfig, Level, LegsFeel, Phase } from './treadmill'
+import type { IntervalConfig, Level, LegsFeel, MatchSoon, Phase } from './treadmill'
 
 const KEY = 'entreno.cardio.run'
 /** Un cardio en curso se considera abandonado pasadas 12 h. */
@@ -12,6 +12,7 @@ export interface Run {
   reduced: boolean
   sessionId: string
   feel: LegsFeel | null
+  match?: MatchSoon
 }
 
 /** Cardio guiado en curso. Se guarda la hora de inicio: el tiempo sigue corriendo aunque la página se recargue. */

@@ -279,3 +279,18 @@ alter table public.recipes add column if not exists method text check (method in
 
 -- Nutrición (1.19): otros nombres de un alimento (sinónimos que escribe el usuario, ej. banano, guineo).
 alter table public.foods add column if not exists aliases text[] not null default '{}';
+
+-- Nutrición (1.27): aviso "En la nevera" (qué guardaste y desde cuándo).
+create table public.fridge_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  name text not null check (length(trim(name)) > 0),
+  made_on date not null default current_date,
+  created_at timestamptz not null default now()
+);
+alter table public.fridge_items enable row level security;
+create policy "own rows" on public.fridge_items for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Nutrición (1.28): lo guardado puede estar en la nevera o en el congelador.
+alter table public.fridge_items add column if not exists kind text not null default 'nevera' check (kind in ('nevera','congelador'));
