@@ -323,8 +323,8 @@ export default function Today() {
 
   const trackerDays: Record<number, string> = (() => {
     if (summary) return summary.days
-    const todayNumber = session?.day_id ? days.find((d) => d.id === session.day_id)?.weekday : undefined
-    return session?.status === 'done' && todayNumber && !(todayNumber in cycleDays) ? { ...cycleDays, [todayNumber]: today } : cycleDays
+    const todayNumber = rawSession?.day_id ? days.find((d) => d.id === rawSession.day_id)?.weekday : undefined
+    return rawSession?.status === 'done' && todayNumber && !(todayNumber in cycleDays) ? { ...cycleDays, [todayNumber]: today } : cycleDays
   })()
   const shortDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 

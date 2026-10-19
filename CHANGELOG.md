@@ -3,6 +3,9 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.6 · 2026-10-19
+- **Corregido:** el ✓ de la sesión de hoy en los 5 días del ciclo ya no depende del día que tengas seleccionado.
+
 ## 3.5 · 2026-10-19
 - **Corregido:** al ver otro día distinto al de la sesión de hoy, aparecían el cardio de hoy y las marcas como hechas. Ahora la sesión de hoy solo se ve en su propio día.
 - **Cambiar de día con la sesión en curso pide confirmación** (ya no cambia con solo tocar otro día). Si no confirmas, sigues con tu sesión.
