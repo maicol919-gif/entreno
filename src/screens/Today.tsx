@@ -83,7 +83,8 @@ export default function Today() {
   const [legCtx, setLegCtx] = useState<LegContext>({ yesterday: false, soreness: null })
   /** El ciclo avanza al completar los 5 días (en cualquier orden), sin depender del calendario. */
   const week = Math.max(1, 1 + completed + (settings.week_offset ?? 0))
-  const [session, setSession] = useState<Session | null>(null)
+  const [rawSession, setSession] = useState<Session | null>(null)
+  const [pendingDay, setPendingDay] = useState<string | null>(null)
   const [doneCount, setDoneCount] = useState<Record<string, number>>({})
   const [openItem, setOpenItem] = useState<RoutineItem | null>(null)
   const [pendingSoreness, setPendingSoreness] = useState<Session | null>(null)
@@ -95,7 +96,10 @@ export default function Today() {
   const [ack, setAck] = useState<string | null>(() => readAck())
   const [flags, setFlags] = useState<Record<string, Flag>>({})
   // la pantalla no se apaga mientras la sesión de entreno está en curso
-  useKeepAwake(session?.status === 'in_progress')
+  // la sesión de hoy solo se muestra en su propio día: otro día se ve como un día nuevo (sin cardio ni series hechas)
+  const session = rawSession && (!dayId || rawSession.day_id === dayId) ? rawSession : null
+  const doneTotal = Object.values(doneCount).reduce((a, n) => a + n, 0)
+  useKeepAwake(rawSession?.status === 'in_progress')
 
   const day = days.find((d) => d.id === dayId) ?? null
   const exById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
@@ -150,7 +154,7 @@ export default function Today() {
       setDayId(days.find((d) => d.weekday === next)?.id ?? null)
     }
     if (cur) {
-      setDayId((d) => cur.day_id ?? d)
+      if (cur.status === 'in_progress' || !touched.current) setDayId((d) => cur.day_id ?? d)
       const { data: sets } = await supabase.from('sets').select('exercise_id').eq('session_id', cur.id).eq('done', true)
       const c: Record<string, number> = {}
       for (const r of sets ?? []) c[r.exercise_id as string] = (c[r.exercise_id as string] ?? 0) + 1
@@ -225,13 +229,22 @@ export default function Today() {
   }, [dayExerciseKey, sessionId, openItem])
 
   // elegir otro día: con la sesión en curso también se puede (si te equivocaste), y la sesión pasa al día elegido
-  async function chooseDay(id: string | null) {
+  function chooseDay(id: string | null) {
+    if (rawSession?.status === 'in_progress' && id && id !== rawSession.day_id) {
+      setPendingDay(id) // con una sesión en curso, antes de cambiar se pide confirmación
+      return
+    }
     touched.current = true
     setDayId(id)
-    if (session?.status === 'in_progress' && id && id !== session.day_id) {
-      await supabase.from('sessions').update({ day_id: id }).eq('id', session.id)
-      setSession({ ...session, day_id: id })
-    }
+  }
+
+  async function confirmChangeDay() {
+    if (!rawSession || !pendingDay) return
+    await supabase.from('sessions').update({ day_id: pendingDay }).eq('id', rawSession.id)
+    setSession({ ...rawSession, day_id: pendingDay })
+    touched.current = true
+    setDayId(pendingDay)
+    setPendingDay(null)
   }
 
   async function start() {
@@ -409,7 +422,7 @@ export default function Today() {
               <button
                 key={d.id}
                 className={`daychip ${date ? 'done' : ''} ${dayId === d.id ? 'sel' : ''}`}
-                onClick={() => void chooseDay(d.id)}
+                onClick={() => chooseDay(d.id)}
               >
                 <strong>Día {d.weekday}</strong>
                 <span>{date ? `✓ ${shortDate(date)}` : 'pendiente'}</span>
@@ -417,12 +430,23 @@ export default function Today() {
             )
           })}
         </div>
-        <p className="muted">Toca un día para elegirlo (si te equivocaste con la sesión en curso, tócalo y la sesión pasa a ese día). Un día repetido no cuenta doble; el ciclo se completa con los 5.</p>
+        {pendingDay && rawSession && (
+          <div className="card warn">
+            <h3>¿Cambiar la sesión en curso?</h3>
+            <p>
+              Hoy empezaste el Día {days.find((d) => d.id === rawSession.day_id)?.weekday}
+              {doneTotal > 0 && <> y ya tienes {doneTotal} series marcadas</>}. Si cambias, esta sesión pasa a ser el Día {days.find((d) => d.id === pendingDay)?.weekday} (tus series se guardan igual).
+            </p>
+            <button className="primary" onClick={() => void confirmChangeDay()}>Sí, cambiar al Día {days.find((d) => d.id === pendingDay)?.weekday}</button>
+            <button onClick={() => setPendingDay(null)}>No, seguir con mi sesión</button>
+          </div>
+        )}
+        <p className="muted">Toca un día para ver su rutina. Si ya tienes una sesión en curso, te pedirá confirmar antes de cambiarla. Un día repetido no cuenta doble; el ciclo se completa con los 5.</p>
       </section>
 
       <label className="muted">
         Día de rutina
-        <select value={dayId ?? ''} onChange={(e) => void chooseDay(e.target.value || null)}>
+        <select value={dayId ?? ''} onChange={(e) => chooseDay(e.target.value || null)}>
           <option value="">Descanso</option>
           {days.map((d) => <option key={d.id} value={d.id}>Día {d.weekday} · {d.name}{trackerDays[d.weekday] ? ' ✓' : ''}</option>)}
         </select>
