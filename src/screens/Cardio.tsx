@@ -1,3 +1,4 @@
+import OtherMachine from './OtherMachine'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmtDate } from '../lib/history'
@@ -88,6 +89,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const { clear: clearRest } = useRest()
   const saved = useRef(readRun())
   const [logs, setLogs] = useState<LogRow[] | null>(null)
+  const [other, setOther] = useState(false)
   const [feel, setFeel] = useState<LegsFeel | null>(saved.current?.feel ?? null)
   const [levelChoice, setLevelChoice] = useState<Level | null>(null)
   const [match, setMatch] = useState<MatchSoon>(saved.current?.match === 'hoy' || saved.current?.match === 'manana' ? saved.current.match : 'no')
@@ -128,7 +130,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const nextMed = useMemo(() => nextMedium(lastOf('media')), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
   const warnings = useMemo(() => intervalWarnings(logs ?? [], today, sevenDaysAgo()), [logs, today])
   const hints = useMemo(() => legHints(legCtx), [legCtx])
-  const hold = useMemo(() => discomfortHold((logs ?? []).map((l) => ({ date: l.date, discomfort: l.discomfort, severity: l.discomfort_severity, resolved: !!l.resolved_at, protocol: l.protocol }))), [logs])
+  const hold = useMemo(() => discomfortHold((logs ?? []).filter((l) => l.kind !== 'otra' || l.discomfort).map((l) => ({ date: l.date, discomfort: l.discomfort, severity: l.discomfort_severity, resolved: !!l.resolved_at, protocol: l.protocol }))), [logs])
 
   // tope efectivo: el del día, el de la pausa por molestia (sin nivel dura) y el del partido
   const capEff: Level = capLevel(capLevel(plan.cap, hold.active ? 'media' : 'dura'), matchCap(match))
@@ -391,6 +393,8 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
     )
   }
 
+  if (other) return <OtherMachine sessionId={sessionId} onBack={() => setOther(false)} onSaved={onBack} />
+
   // ───────── plan del día ─────────
   const lastSame = level ? logs?.find((l) => l.kind === kindOf(level)) : null
   let t = 0
@@ -398,6 +402,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
     <div className="screen">
       <button className="link back" onClick={onBack}>← Sesión</button>
       <h2>Cardio en cinta</h2>
+      <button className="link" onClick={() => setOther(true)}>¿Cinta ocupada? Registrar otra máquina (bicicleta, elíptica…)</button>
 
       {!feel && (
         <section className="card">

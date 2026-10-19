@@ -3,6 +3,9 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.4 · 2026-10-19
+- **Cardio en otra máquina:** en Cardio, el enlace "¿Cinta ocupada?" permite registrar bicicleta, elíptica u otra máquina por minutos, test de habla y esfuerzo. Cuenta como cardio de la sesión y no cambia el nivel ni la fase de la cinta. Una molestia anotada ahí sí activa la pausa; una sesión sin molestia no la levanta.
+
 ## 3.3 · 2026-10-19
 - **Cambiar de día con la sesión en curso:** si empezaste el día equivocado, ahora puedes tocar otro día (o usar el selector) y la sesión pasa a ese día. Antes quedaba bloqueado.
 

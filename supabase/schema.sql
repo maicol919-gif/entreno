@@ -318,3 +318,7 @@ alter table public.session_exercise_notes add column if not exists rating smalli
 
 -- 3.2: rotación por bloques (null = ejercicio fijo; A/B/C = opción que rota cada 3 ciclos)
 alter table public.routine_items add column if not exists block text check (block in ('A','B','C'));
+
+-- 3.4: cardio en otra máquina
+alter table public.cardio_logs drop constraint if exists cardio_logs_kind_check;
+alter table public.cardio_logs add constraint cardio_logs_kind_check check (kind in ('liss','hiit','intervalos','media','recuperacion','otra'));
