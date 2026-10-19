@@ -353,8 +353,14 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
       </section>
 
       <section className="card">
+        <h3>¿Qué tal te pareció?</h3>
+        <div className="stars">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <button key={n} className={rating != null && n <= rating ? 'on' : ''} onClick={() => void saveRating(rating === n ? null : n)} aria-label={`${n} estrellas`}>★</button>
+          ))}
+        </div>
         {!uncomfortable && !pickReason && (
-          <button className="link" onClick={() => setPickReason(true)}>⚠ Me incomodó este ejercicio</button>
+          <button className="link" onClick={() => setPickReason(true)}>⚠ Me incomodó</button>
         )}
         {pickReason && (
           <>
@@ -367,20 +373,10 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
         )}
         {uncomfortable && (
           <p>
-            Marcado como incómodo: <strong>{reasonLabel(reason)}</strong>. La próxima vez te propongo reemplazos.{' '}
-            <button className="link" onClick={() => saveFlag(false, null)}>Quitar marca</button>
+            ⚠ Incómodo: <strong>{reasonLabel(reason)}</strong>. La próxima vez te propongo reemplazos.{' '}
+            <button className="link" onClick={() => saveFlag(false, null)}>Quitar</button>
           </p>
         )}
-      </section>
-
-      <section className="card">
-        <h3>¿Qué tal te pareció?</h3>
-        <div className="stars">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button key={n} className={rating != null && n <= rating ? 'on' : ''} onClick={() => void saveRating(rating === n ? null : n)} aria-label={`${n} estrellas`}>★</button>
-          ))}
-        </div>
-        <p className="muted">Opcional. Sirve para elegir mejor tus ejercicios en los próximos bloques.</p>
       </section>
 
       <button
