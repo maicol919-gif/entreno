@@ -3,6 +3,10 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.7 · 2026-10-19
+- **Días ya hechos en el ciclo:** al tocar un día con ✓, arriba dice "Hecho el 17/10 · 14 series" y el botón pasa a "Repetir este día" (repetir no cuenta doble).
+- Si hay dos sesiones el mismo día, se muestra la del día seleccionado.
+
 ## 3.6 · 2026-10-19
 - **Corregido:** el ✓ de la sesión de hoy en los 5 días del ciclo ya no depende del día que tengas seleccionado.
 

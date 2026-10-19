@@ -74,8 +74,12 @@ export default function Today() {
   const now = useMemo(() => new Date(), [])
   const today = toISODate(now)
   const [dayId, setDayId] = useState<string | null>(null)
+  const dayIdRef = useRef<string | null>(null)
+  dayIdRef.current = dayId
   const [completed, setCompleted] = useState(0)
   const [cycleDays, setCycleDays] = useState<Record<number, string>>({})
+  /** número de día -> series hechas ese día en el ciclo actual */
+  const [cycleSets, setCycleSets] = useState<Record<number, number>>({})
   const [confirmFinish, setConfirmFinish] = useState(false)
   const [budget, setBudgetState] = useState<number | null>(() => readBudget())
   const touched = useRef(false)
@@ -105,8 +109,10 @@ export default function Today() {
   const exById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
 
   const refresh = useCallback(async () => {
-    const { data: s } = await supabase.from('sessions').select('*').eq('date', today).order('started_at', { ascending: false }).limit(1)
-    const cur = (s?.[0] as Session | undefined) ?? null
+    const { data: s } = await supabase.from('sessions').select('*').eq('date', today).order('started_at', { ascending: false })
+    const todays = (s ?? []) as Session[]
+    // puede haber varias sesiones hoy (por ejemplo dos días distintos): la en curso, si no la del día seleccionado, si no la última
+    const cur = todays.find((x) => x.status === 'in_progress') ?? todays.find((x) => x.day_id === dayIdRef.current) ?? todays[0] ?? null
     setSession(cur)
 
     // un cardio guiado en curso se reabre solo, aunque la página se haya recargado
@@ -134,6 +140,12 @@ export default function Today() {
     const incl = computeCycles(all)
     setCompleted(base.completed)
     setCycleDays(base.current.days)
+    const setsByDay: Record<number, number> = {}
+    for (const r of doneRows ?? []) {
+      const n = days.find((d) => d.id === r.day_id)?.weekday
+      if (n && base.current.sessionIds.includes(r.id as string)) setsByDay[n] = (setsByDay[n] ?? 0) + ((r.sets as unknown[] | null)?.length ?? 0)
+    }
+    setCycleSets(setsByDay)
     if (cur && cur.status === 'done' && incl.completed > base.completed && incl.last) {
       const ids = incl.last.sessionIds
       const { count } = await supabase.from('sets').select('id', { count: 'exact', head: true }).in('session_id', ids).eq('done', true)
@@ -189,7 +201,7 @@ export default function Today() {
 
   useEffect(() => {
     void refresh()
-  }, [refresh, openItem, openCardio])
+  }, [refresh, openItem, openCardio, dayId])
 
   const block = blockFor(week)
   const dayItems = itemsForBlock(items, exercises, block).filter((i) => i.day_id === dayId && i.start_week <= week).sort((a, b) => a.position - b.position)
@@ -481,7 +493,10 @@ export default function Today() {
                 </p>
               )}
               {timePlan.overBudget && <p className="fixed">Aun recortando, esta rutina pide más de {budget} min. Puedes empezar igual y terminar cuando debas.</p>}
-              <button className="primary" onClick={start}>Empezar sesión</button>
+              {day && cycleDays[day.weekday] && (
+                <p className="ok">Hecho el {shortDate(cycleDays[day.weekday])}{cycleSets[day.weekday] ? ' · ' + cycleSets[day.weekday] + ' series' : ''} ✔ en este ciclo. Si lo repites, no cuenta doble.</p>
+              )}
+              <button className="primary" onClick={start}>{day && cycleDays[day.weekday] ? 'Repetir este día' : 'Empezar sesión'}</button>
             </>
           )}
           {session && budget != null && session.status === 'in_progress' && <p className="muted">Plan para {budget} min · ≈{timePlan.totalMin} min con cardio.</p>}
