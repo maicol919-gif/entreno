@@ -224,6 +224,16 @@ export default function Today() {
     })()
   }, [dayExerciseKey, sessionId, openItem])
 
+  // elegir otro día: con la sesión en curso también se puede (si te equivocaste), y la sesión pasa al día elegido
+  async function chooseDay(id: string | null) {
+    touched.current = true
+    setDayId(id)
+    if (session?.status === 'in_progress' && id && id !== session.day_id) {
+      await supabase.from('sessions').update({ day_id: id }).eq('id', session.id)
+      setSession({ ...session, day_id: id })
+    }
+  }
+
   async function start() {
     if (!dayId) return
     const { data } = await supabase.from('sessions').insert({ date: today, day_id: dayId }).select('*').single()
@@ -399,11 +409,7 @@ export default function Today() {
               <button
                 key={d.id}
                 className={`daychip ${date ? 'done' : ''} ${dayId === d.id ? 'sel' : ''}`}
-                disabled={session?.status === 'in_progress'}
-                onClick={() => {
-                  touched.current = true
-                  setDayId(d.id)
-                }}
+                onClick={() => void chooseDay(d.id)}
               >
                 <strong>Día {d.weekday}</strong>
                 <span>{date ? `✓ ${shortDate(date)}` : 'pendiente'}</span>
@@ -411,12 +417,12 @@ export default function Today() {
             )
           })}
         </div>
-        <p className="muted">Toca un día para elegirlo. Un día repetido no cuenta doble; el ciclo se completa con los 5.</p>
+        <p className="muted">Toca un día para elegirlo (si te equivocaste con la sesión en curso, tócalo y la sesión pasa a ese día). Un día repetido no cuenta doble; el ciclo se completa con los 5.</p>
       </section>
 
       <label className="muted">
         Día de rutina
-        <select value={dayId ?? ''} disabled={session?.status === 'in_progress'} onChange={(e) => { touched.current = true; setDayId(e.target.value || null) }}>
+        <select value={dayId ?? ''} onChange={(e) => void chooseDay(e.target.value || null)}>
           <option value="">Descanso</option>
           {days.map((d) => <option key={d.id} value={d.id}>Día {d.weekday} · {d.name}{trackerDays[d.weekday] ? ' ✓' : ''}</option>)}
         </select>

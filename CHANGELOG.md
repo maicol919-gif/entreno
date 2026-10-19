@@ -3,6 +3,9 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.3 · 2026-10-19
+- **Cambiar de día con la sesión en curso:** si empezaste el día equivocado, ahora puedes tocar otro día (o usar el selector) y la sesión pasa a ese día. Antes quedaba bloqueado.
+
 ## 3.2 · 2026-10-18
 - **Rotación de ejercicios cada 3 ciclos (bloques A → B → C → A…).** Los 3 ejercicios principales de cada día no cambian; los accesorios (remo, hombro posterior, tríceps, bíceps, gemelo, abdomen…) rotan entre 3 opciones. El bloque A es tu rutina de siempre. En Hoy ves el bloque actual y en qué ciclo cambia.
 - Si una opción del bloque está marcada como no disponible en Gimnasio, se usa la del bloque A en ese hueco.
