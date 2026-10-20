@@ -5,7 +5,6 @@ import { fmtDate, fmtSets, loadPast } from '../lib/history'
 import { suggest, type Suggestion } from '../lib/progression'
 import type { Prescription } from '../lib/plan'
 import { GUIDES, VIDEOS, videoSearchUrl } from '../data/guides'
-import { DISCOMFORT_REASONS, reasonLabel } from '../lib/alternatives'
 import { useData } from '../store'
 import { SIMILAR } from '../data/similar'
 import type { Exercise, PastSession, SetRow } from '../types'
@@ -54,6 +53,8 @@ interface Props {
   onReplace: (exerciseId: string) => void
 }
 
+const STAR_TEXT = ['No me gustó nada', 'Casi no me gustó', 'Normal', 'Me gustó', 'Me encantó']
+
 export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onBack, nextName, onNext, flag, alts, onReplace }: Props) {
   const [sets, setSets] = useState<SetRow[] | null>(null)
   const [past, setPast] = useState<PastSession[]>([])
@@ -65,9 +66,6 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
   const [pending, setPending] = useState(0)
   const [showGuide, setShowGuide] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
-  const [uncomfortable, setUncomfortable] = useState(false)
-  const [reason, setReason] = useState<string | null>(null)
-  const [pickReason, setPickReason] = useState(false)
   const [fb, setFb] = useState<'idle' | 'ask' | 'sent'>('idle')
   const [fbNote, setFbNote] = useState('')
   const { exercises: allExercises } = useData()
@@ -119,8 +117,6 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
       setSugg(s)
       setSets(rows)
       setNote(nt.data?.note ?? '')
-      setUncomfortable(!!nt.data?.uncomfortable)
-      setReason((nt.data?.discomfort_reason as string | null) ?? null)
       setRating((nt.data?.rating as number | null) ?? null)
     })()
     return () => { cancelled = true }
@@ -199,21 +195,14 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
 
   async function saveRating(n: number | null) {
     setRating(n)
-    await supabase.from('session_exercise_notes').upsert({ session_id: sessionId, exercise_id: exercise.id, note, rating: n })
+    // 1-2 estrellas = no te gustó: la próxima vez se proponen reemplazos
+    const low = n != null && n <= 2
+    await supabase.from('session_exercise_notes').upsert({ session_id: sessionId, exercise_id: exercise.id, note, rating: n, uncomfortable: low, discomfort_reason: null })
   }
 
   async function sendVideoFeedback() {
     setFb('sent')
     await supabase.from('exercise_feedback').insert({ exercise_id: exercise.id, kind: 'video_no_coincide', note: fbNote || null })
-  }
-
-  async function saveFlag(on: boolean, why: string | null) {
-    setUncomfortable(on)
-    setReason(on ? why : null)
-    setPickReason(false)
-    await supabase
-      .from('session_exercise_notes')
-      .upsert({ session_id: sessionId, exercise_id: exercise.id, note, uncomfortable: on, discomfort_reason: on ? why : null })
   }
 
   function useSuggestion() {
@@ -241,15 +230,15 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
 
       {flag && (
         <section className="card warn">
-          <h3>La última vez te incomodó</h3>
-          <p className="muted">{reasonLabel(flag.reason)} ({flag.date}). Puedes reemplazarlo en tu rutina; el historial de este ejercicio se conserva.</p>
+          <h3>La última vez no te gustó</h3>
+          <p className="muted">Lo puntuaste con 1-2 estrellas ({flag.date}). Puedes reemplazarlo en tu rutina; el historial de este ejercicio se conserva.</p>
           {alts.length === 0 && <p className="muted">No encuentro reemplazos disponibles del mismo músculo. Marca más ejercicios como disponibles en Gimnasio o dime qué máquinas hay.</p>}
           {alts.map((a) => (
             <button key={a.id} className="choice" onClick={() => onReplace(a.id)}>
               Cambiar por <strong>{a.name}</strong> <span className="muted">· {a.equipment ?? ''}</span>
             </button>
           ))}
-          <p className="muted">Si lo mantienes y hoy no te incomoda, esta alerta desaparece sola.</p>
+          <p className="muted">Si lo mantienes y hoy lo puntúas con 3 o más, esta alerta desaparece.</p>
         </section>
       )}
 
@@ -359,24 +348,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
             <button key={n} className={rating != null && n <= rating ? 'on' : ''} onClick={() => void saveRating(rating === n ? null : n)} aria-label={`${n} estrellas`}>★</button>
           ))}
         </div>
-        {!uncomfortable && !pickReason && (
-          <button className="link" onClick={() => setPickReason(true)}>⚠ Me incomodó</button>
-        )}
-        {pickReason && (
-          <>
-            <h3>¿Qué pasó?</h3>
-            {DISCOMFORT_REASONS.map((r) => (
-              <button key={r.id} className="choice" onClick={() => saveFlag(true, r.id)}>{r.label}</button>
-            ))}
-            <button className="link" onClick={() => setPickReason(false)}>Cancelar</button>
-          </>
-        )}
-        {uncomfortable && (
-          <p>
-            ⚠ Incómodo: <strong>{reasonLabel(reason)}</strong>. La próxima vez te propongo reemplazos.{' '}
-            <button className="link" onClick={() => saveFlag(false, null)}>Quitar</button>
-          </p>
-        )}
+        <p className="muted">{rating == null ? 'Opcional: 1 = no me gustó nada · 5 = me encantó. Sirve para elegir tus ejercicios preferidos.' : STAR_TEXT[rating - 1]}</p>
       </section>
 
       <button

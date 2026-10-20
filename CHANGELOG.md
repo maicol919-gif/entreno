@@ -3,6 +3,9 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.9 · 2026-10-20
+- **Solo estrellas:** se quita "Me incomodó". 1 estrella = no me gustó nada, 2 = casi no, 3 = normal, 4 = me gustó, 5 = me encantó. Con 1 o 2 estrellas, la próxima vez la app propone reemplazos.
+
 ## 3.8 · 2026-10-19
 - **Valoración del ejercicio en una sola tarjeta:** estrellas y "Me incomodó" juntas, sin texto de más.
 
