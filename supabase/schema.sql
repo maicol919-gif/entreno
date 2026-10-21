@@ -332,3 +332,23 @@ alter table public.fridge_items alter column made_on drop default;
 alter table public.fridge_items add column if not exists food_id uuid references public.foods(id) on delete set null;
 alter table public.fridge_items add column if not exists low boolean not null default false;
 alter table public.fridge_items add column if not exists note text;
+
+-- Nutrición (1.32): plan de comidas (qué se cocina cada día) para "Hoy toca" y la lista de la compra.
+create table public.meal_plan (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  date date not null,
+  meal text not null check (meal in ('desayuno','comida','merienda','cena')),
+  recipe_id uuid references public.recipes(id) on delete set null,
+  label text,
+  servings numeric not null default 1 check (servings > 0),
+  note text,
+  created_at timestamptz not null default now()
+);
+create index meal_plan_user_date on public.meal_plan (user_id, date);
+alter table public.meal_plan enable row level security;
+create policy "own rows" on public.meal_plan for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Nutrición (1.33): se quita el plan de comidas.
+drop table if exists public.meal_plan;

@@ -319,6 +319,18 @@ export const GUIDES: Record<string, Guide> = {
     errors: ["Encoger el trapecio","Usar impulso","Rango corto"],
     query: "elevación lateral máquina técnica",
   },
+  'Press de hombros máquina': {
+    setup: "Ajusta el asiento para que las asas queden a la altura de los hombros. Espalda apoyada, pies firmes en el suelo.",
+    steps: ["Empuja hacia arriba sin bloquear los codos.","Baja en 2 s hasta que las asas queden a la altura de las orejas.","Mantén las costillas abajo y el cuello relajado."],
+    errors: ["Arquear la zona lumbar","Encoger los hombros hacia las orejas","Rebotar abajo"],
+    query: "Matrix prensa de hombros máquina técnica",
+  },
+  'Crunch abdominal máquina': {
+    setup: "Siéntate con la espalda baja apoyada y agarra las asas junto a la cabeza. Ajusta el asiento para que el eje quede a la altura del abdomen.",
+    steps: ["Enrolla el torso llevando las costillas hacia la cadera.","Aprieta el abdomen 1 s.","Vuelve en 2 s sin soltar el peso."],
+    errors: ["Tirar con los brazos","Doblarse desde la cadera en vez de enrollar","Usar impulso"],
+    query: "Matrix contracción abdominal máquina crunch",
+  },
 }
 
 export function videoSearchUrl(name: string, query?: string): string {

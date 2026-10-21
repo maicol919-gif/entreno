@@ -5,6 +5,8 @@
 export const SIMILAR: Record<string, string> = {
   'Sentadilla Perfect Squat': 'Sentadilla Smith',
   'Glute Trainer': 'Curl femoral sentado',
+  'Press de hombros máquina': 'Press militar mancuernas',
+  'Crunch abdominal máquina': 'Crunch',
   'Curl predicador con barra Z': 'Curl concentrado en máquina',
   'Remo Hammer máquina': 'Remo unilateral máquina',
   'Remo sentado en polea baja': 'Remo unilateral banco en polea',
