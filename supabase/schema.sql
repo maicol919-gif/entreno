@@ -352,3 +352,90 @@ create policy "own rows" on public.meal_plan for all to authenticated
 
 -- Nutrición (1.33): se quita el plan de comidas.
 drop table if exists public.meal_plan;
+
+-- Nutrición (1.40): "Me gusta" / "No me apetece" en las propuestas de ¿Qué como ahora? (clave = receta o conjunto de alimentos).
+create table public.dish_feedback (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  key text not null,
+  liked boolean not null,
+  updated_at timestamptz not null default now(),
+  unique (user_id, key)
+);
+alter table public.dish_feedback enable row level security;
+create policy "own rows" on public.dish_feedback for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Nutrición (1.42): suplementos y medicación (nombre, dosis, cafeína en mg y hora).
+create table public.supplement_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  date date not null,
+  taken_at timestamptz not null default now(),
+  name text not null check (length(trim(name)) > 0),
+  dose text,
+  caffeine_mg numeric not null default 0 check (caffeine_mg >= 0),
+  note text,
+  created_at timestamptz not null default now()
+);
+create index supplement_log_user_date on public.supplement_log (user_id, date);
+alter table public.supplement_log enable row level security;
+create policy "own rows" on public.supplement_log for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+-- Nutrición (1.43): cafeína aproximada (mg por 100 g) de café, cola y chocolate, para sumarla sola.
+alter table public.foods add column if not exists caffeine_mg numeric not null default 0 check (caffeine_mg >= 0);
+
+-- Vértice (0.1): vistas estables de solo lectura que usa la app Vértice (security_invoker: respetan la seguridad por filas del usuario).
+create or replace view public.v_nutrition_daily with (security_invoker = true) as
+select date, sum(kcal)::numeric as kcal, sum(protein)::numeric as protein, sum(carbs)::numeric as carbs, sum(fat)::numeric as fat,
+       count(*)::int as meals, sum(kcal_estimated)::numeric as kcal_estimated
+from public.meal_log where status <> 'pending' group by date;
+
+create or replace view public.v_training_daily with (security_invoker = true) as
+select coalesce(s.date, c.date) as date, coalesce(s.sessions, 0)::int as sessions_done, coalesce(c.minutes, 0)::numeric as cardio_minutes
+from (select date, count(*) as sessions from public.sessions where status = 'done' group by date) s
+full join (select date, sum(minutes) as minutes from public.cardio_logs group by date) c on c.date = s.date;
+
+create or replace view public.v_caffeine_daily with (security_invoker = true) as
+select date, sum(mg)::numeric as caffeine_mg
+from (
+  select date, caffeine_mg as mg from public.supplement_log
+  union all
+  select m.date, (x->>'grams')::numeric * f.caffeine_mg / 100 as mg
+  from public.meal_log m
+  cross join lateral jsonb_array_elements(coalesce(m.items, '[]'::jsonb)) x
+  join public.foods f on f.id = (x->>'food_id')::uuid
+  where f.caffeine_mg > 0 and m.status <> 'pending'
+) t group by date;
+
+create or replace view public.v_body_daily with (security_invoker = true) as select date, kg, waist_cm from public.body_weight;
+create or replace view public.v_targets with (security_invoker = true) as select kcal_target, protein_target, height_cm from public.settings;
+grant select on public.v_nutrition_daily, public.v_training_daily, public.v_caffeine_daily, public.v_body_daily, public.v_targets to authenticated;
+
+-- Nutrición (1.46) y Vértice (0.4): sueño (noche y siestas). `date` = día en que termina el sueño.
+create table public.sleep_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  date date not null,
+  kind text not null default 'noche' check (kind in ('noche', 'siesta')),
+  start_at timestamptz not null,
+  end_at timestamptz not null,
+  quality smallint check (quality between 1 and 5),
+  note text,
+  created_at timestamptz not null default now(),
+  check (end_at > start_at and end_at - start_at <= interval '16 hours')
+);
+create index sleep_log_user_date on public.sleep_log (user_id, date);
+alter table public.sleep_log enable row level security;
+create policy "own rows" on public.sleep_log for all to authenticated
+  using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
+
+create or replace view public.v_sleep_daily with (security_invoker = true) as
+select date,
+       round(sum(extract(epoch from (end_at - start_at)) / 60))::int as minutes,
+       round(coalesce(sum(extract(epoch from (end_at - start_at)) / 60) filter (where kind = 'noche'), 0))::int as night_minutes,
+       round(coalesce(sum(extract(epoch from (end_at - start_at)) / 60) filter (where kind = 'siesta'), 0))::int as nap_minutes,
+       round(avg(quality) filter (where kind = 'noche'), 1) as quality
+from public.sleep_log group by date;
+grant select on public.v_sleep_daily to authenticated;
