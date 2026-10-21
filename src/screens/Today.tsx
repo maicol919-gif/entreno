@@ -296,6 +296,13 @@ export default function Today() {
     setAck(session.id)
   }
 
+  /** "No hay esta máquina": se marca como no disponible y se devuelven reemplazos del mismo músculo */
+  async function markMissing(ex: Exercise): Promise<Exercise[]> {
+    await supabase.from('exercises').update({ available: false }).eq('id', ex.id)
+    await reload()
+    return alternatives(ex, exercises, dayItems.map((i) => i.exercise_id), 'maquina')
+  }
+
   async function replaceExercise(item: RoutineItem, newExerciseId: string) {
     await supabase.from('routine_items').update({ exercise_id: newExerciseId }).eq('id', item.id)
     await reload()
@@ -376,6 +383,7 @@ export default function Today() {
         flag={flag}
         alts={flag ? alternatives(ex, exercises, dayItems.map((i) => i.exercise_id), flag.reason) : []}
         onReplace={(id) => void replaceExercise(openItem, id)}
+        onMissing={() => markMissing(ex)}
       />
     )
   }

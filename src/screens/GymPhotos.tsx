@@ -86,25 +86,11 @@ export default function GymPhotos() {
     await load()
   }
 
-  async function copyLink(p: Photo) {
-    const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(p.path, 7 * 86400)
-    if (error || !data) {
-      setMsg(error?.message ?? 'No se pudo crear el enlace.')
-      return
-    }
-    try {
-      await navigator.clipboard.writeText(data.signedUrl)
-      setMsg('Enlace copiado (válido 7 días).')
-    } catch {
-      window.prompt('Copia este enlace (válido 7 días):', data.signedUrl)
-    }
-  }
-
   return (
     <section className="card">
       <h3>Fotos del gimnasio</h3>
       <p className="muted">
-        Sube fotos de las máquinas del gimnasio. Son privadas: solo se ven con tu sesión iniciada. Con ellas se actualiza el catálogo y la rutina.
+        Sube fotos de las máquinas. Son privadas. Cuando las reviso y las uso para actualizar el catálogo, se borran solas; si repites una máquina que ya está, la descarto.
       </p>
       <label className="filebtn">
         {busy ? 'Subiendo…' : '📷 Subir fotos'}
@@ -118,10 +104,8 @@ export default function GymPhotos() {
           <figure key={p.id}>
             {p.url ? <img src={p.url} alt={p.note ?? 'Foto del gimnasio'} loading="lazy" /> : <div className="noimg">Sin vista previa</div>}
             <figcaption>
-              <small>{new Date(p.created_at).toLocaleDateString('es-ES')}{p.note ? ` · ${p.note}` : ''}</small>
-              {p.tags.length > 0 && <small className="muted">{p.tags.join(', ')}</small>}
+              <small>{new Date(p.created_at).toLocaleDateString('es-ES')}</small>
               <span className="row">
-                <button className="link" onClick={() => copyLink(p)}>Copiar enlace</button>
                 <button className="link" onClick={() => remove(p)}>Borrar</button>
               </span>
             </figcaption>

@@ -3,6 +3,10 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.10 · 2026-10-21
+- **Gimnasio sin tareas:** ya no hay que marcar máquinas; se asume que hay todo. En cada ejercicio, "No hay esta máquina" lo marca como no disponible y propone reemplazos. En Gimnasio solo se listan las que no hay (con "Ya la hay" para deshacer).
+- **Fotos:** se quita "Copiar enlace"; las fotos se borran cuando se usan para actualizar el catálogo.
+
 ## 3.9 · 2026-10-20
 - **Solo estrellas:** se quita "Me incomodó". 1 estrella = no me gustó nada, 2 = casi no, 3 = normal, 4 = me gustó, 5 = me encantó. Con 1 o 2 estrellas, la próxima vez la app propone reemplazos.
 

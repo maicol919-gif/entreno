@@ -322,3 +322,13 @@ alter table public.routine_items add column if not exists block text check (bloc
 -- 3.4: cardio en otra máquina
 alter table public.cardio_logs drop constraint if exists cardio_logs_kind_check;
 alter table public.cardio_logs add constraint cardio_logs_kind_check check (kind in ('liss','hiit','intervalos','media','recuperacion','otra'));
+
+-- Nutrición (1.29): "En casa". La misma tabla guarda lo que hay en nevera, congelador y despensa
+-- (made_on puede ser null; food_id enlaza con el alimento si existe).
+alter table public.fridge_items drop constraint if exists fridge_items_kind_check;
+alter table public.fridge_items add constraint fridge_items_kind_check check (kind in ('nevera','congelador','despensa'));
+alter table public.fridge_items alter column made_on drop not null;
+alter table public.fridge_items alter column made_on drop default;
+alter table public.fridge_items add column if not exists food_id uuid references public.foods(id) on delete set null;
+alter table public.fridge_items add column if not exists low boolean not null default false;
+alter table public.fridge_items add column if not exists note text;

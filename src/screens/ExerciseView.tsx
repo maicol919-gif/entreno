@@ -51,11 +51,14 @@ interface Props {
   /** reemplazos sugeridos (mismo músculo, disponibles) */
   alts: Exercise[]
   onReplace: (exerciseId: string) => void
+  /** "No hay esta máquina": marca el ejercicio como no disponible y devuelve reemplazos */
+  onMissing: () => Promise<Exercise[]>
 }
 
 const STAR_TEXT = ['No me gustó nada', 'Casi no me gustó', 'Normal', 'Me gustó', 'Me encantó']
 
-export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onBack, nextName, onNext, flag, alts, onReplace }: Props) {
+export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onBack, nextName, onNext, flag, alts, onReplace, onMissing }: Props) {
+  const [missingAlts, setMissingAlts] = useState<Exercise[] | null>(null)
   const [sets, setSets] = useState<SetRow[] | null>(null)
   const [past, setPast] = useState<PastSession[]>([])
   const [sugg, setSugg] = useState<Suggestion | null>(null)
@@ -242,6 +245,19 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
         </section>
       )}
 
+      {missingAlts && (
+        <section className="card warn">
+          <h3>Sin esta máquina</h3>
+          <p className="muted">Quedó marcada como no disponible. Elige con qué reemplazarla en tu rutina:</p>
+          {missingAlts.length === 0 && <p className="muted">No encuentro reemplazos del mismo músculo. Dímelo y lo resolvemos.</p>}
+          {missingAlts.map((a) => (
+            <button key={a.id} className="choice" onClick={() => onReplace(a.id)}>
+              Cambiar por <strong>{a.name}</strong> <span className="muted">· {a.equipment ?? ''}</span>
+            </button>
+          ))}
+        </section>
+      )}
+
       <section className="card guide">
         <div className="row between">
           <h3>Cómo hacerlo</h3>
@@ -349,6 +365,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
           ))}
         </div>
         <p className="muted">{rating == null ? 'Opcional: 1 = no me gustó nada · 5 = me encantó. Sirve para elegir tus ejercicios preferidos.' : STAR_TEXT[rating - 1]}</p>
+        <button className="link" onClick={() => { if (window.confirm('¿Marcar "' + exercise.name + '" como no disponible en tu gimnasio?')) void onMissing().then(setMissingAlts) }}>No hay esta máquina</button>
       </section>
 
       <button
