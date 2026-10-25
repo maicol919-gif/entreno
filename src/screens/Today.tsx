@@ -259,10 +259,15 @@ export default function Today() {
     setPendingDay(null)
   }
 
+  const starting = useRef(false)
   async function start() {
-    if (!dayId) return
-    const { data } = await supabase.from('sessions').insert({ date: today, day_id: dayId }).select('*').single()
-    if (data) setSession(data as Session)
+    if (!dayId || starting.current) return // evita crear dos sesiones con un doble toque
+    starting.current = true
+    const { data, error } = await supabase.from('sessions').insert({ date: today, day_id: dayId }).select('*').single()
+    // 23505 = ya existía una sesión en curso de este día (doble toque): se usa esa
+    if (error && error.code === '23505') await refresh()
+    else if (data) setSession(data as Session)
+    starting.current = false
   }
 
   async function finish() {

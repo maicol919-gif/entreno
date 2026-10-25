@@ -439,3 +439,6 @@ select date,
        round(avg(quality) filter (where kind = 'noche'), 1) as quality
 from public.sleep_log group by date;
 grant select on public.v_sleep_daily to authenticated;
+
+-- 3.12: una sola sesión en curso por día de rutina y fecha
+create unique index if not exists sessions_one_open_per_day on public.sessions (user_id, date, day_id) where status = 'in_progress';

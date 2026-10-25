@@ -3,6 +3,9 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.12 · 2026-10-25
+- **Corregido:** un doble toque en "Empezar sesión" podía crear dos sesiones iguales y la pantalla mostraba la vacía (como si no hubiera nada marcado). Ahora solo se crea una.
+
 ## 3.11 · 2026-10-21
 - Catálogo: Press de hombros máquina y Crunch abdominal máquina (Matrix), con guía y referencia de peso. Aparecen como reemplazos posibles.
 
