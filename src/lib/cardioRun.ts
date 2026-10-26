@@ -13,6 +13,8 @@ export interface Run {
   sessionId: string
   feel: LegsFeel | null
   match?: MatchSoon
+  /** minutos de cardio disponibles (null = sesión completa) */
+  minutes?: number | null
 }
 
 /** Cardio guiado en curso. Se guarda la hora de inicio: el tiempo sigue corriendo aunque la página se recargue. */

@@ -17,6 +17,9 @@ import {
   intervalWarnings,
   kindOf,
   speechWindow,
+  buildSession as buildSessionFull,
+  totalSeconds as totalSecondsFull,
+  MIN_CARDIO_MIN,
   legHints,
   levelFor,
   levelMinutes,
@@ -91,6 +94,8 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const saved = useRef(readRun())
   const [logs, setLogs] = useState<LogRow[] | null>(null)
   const [other, setOther] = useState(false)
+  /** minutos de cardio que tienes hoy (null = el cardio completo de tu nivel) */
+  const [minutesAvail, setMinutesAvail] = useState<number | null>(saved.current?.minutes ?? null)
   const [feel, setFeel] = useState<LegsFeel | null>(saved.current?.feel ?? null)
   const [levelChoice, setLevelChoice] = useState<Level | null>(null)
   const [match, setMatch] = useState<MatchSoon>(saved.current?.match === 'hoy' || saved.current?.match === 'manana' ? saved.current.match : 'no')
@@ -123,8 +128,13 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
       .then(({ data }) => setLogs((data ?? []) as LogRow[]))
   }, [])
 
+  // una sesión corta solo puede bajar la exigencia (si el habla no pasó de la mitad); para subirla cuenta la última sesión completa
+  const isShortLog = (l: LogRow) => !!(l.protocol as { short?: boolean } | null)?.short
   const lastOf = (kind: string): LastInterval | null => {
-    const l = logs?.find((x) => x.kind === kind)
+    const same = (logs ?? []).filter((x) => x.kind === kind)
+    const first = same[0]
+    if (!first) return null
+    const l = isShortLog(first) && first.speech_test !== 'mitad' ? same.find((x) => !isShortLog(x)) : first
     return l ? { protocol: l.protocol ?? null, speech_test: l.speech_test, discomfort: l.discomfort } : null
   }
   const nextHard = useMemo(() => nextInterval(lastOf('intervalos')), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -146,7 +156,10 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const reduced = run?.reduced ?? (feel === 'cargadas' && level === 'suave')
   const cfg: IntervalConfig = run?.cfg ?? { ...nextHard.config, mediumSpeed: nextMed.mediumSpeed }
   const ph = run?.phase ?? phaseEff
-  const segs: Segment[] = useMemo(() => (level ? buildSession(level, ph, cfg, reduced) : []), [level, ph, cfg, reduced])
+  const minutesEff = run ? (run.minutes ?? null) : minutesAvail
+  const fullSec = useMemo(() => (level ? totalSecondsFull(buildSessionFull(level, ph, cfg, reduced, null)) : 0), [level, ph, cfg, reduced])
+  const isShort = minutesEff != null && minutesEff * 60 < fullSec
+  const segs: Segment[] = useMemo(() => (level ? buildSession(level, ph, cfg, reduced, minutesEff) : []), [level, ph, cfg, reduced, minutesEff])
   const total = totalSeconds(segs)
 
   const elapsed = run ? Math.max(0, Math.floor((now - run.start) / 1000)) : 0
@@ -219,7 +232,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
     if (!feel || !level) return
     clearRest()
     lastIndex.current = -1
-    const r: Run = { start: Date.now(), level, phase: phaseEff, cfg, reduced, sessionId, feel, match }
+    const r: Run = { start: Date.now(), level, phase: phaseEff, cfg, reduced, sessionId, feel, match, minutes: isShort ? minutesEff : null }
     setNow(r.start)
     setRun(r)
     writeRun(r)
@@ -260,6 +273,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
         : run.level === 'media'
           ? { mediumSpeed: run.cfg.mediumSpeed, phase: run.phase }
           : { phase: run.phase }
+    if (run.minutes != null) Object.assign(protocol, { short: true, minutes: run.minutes })
     const { error } = await supabase.from('cardio_logs').insert({
       session_id: run.sessionId,
       date: toISODate(new Date(run.start)),
@@ -470,6 +484,21 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
             </div>
           )}
 
+          <section className="card">
+            <h3>¿Cuánto tiempo tienes para el cardio?</h3>
+            <div className="timechips">
+              {[MIN_CARDIO_MIN, 15, 20, 25, 30, 40].filter((m) => m * 60 < fullSec).map((m) => (
+                <button key={m} className={`levelchip ${minutesAvail === m ? 'on' : ''}`} onClick={() => setMinutesAvail(m)}>
+                  <strong>{m} min</strong>
+                </button>
+              ))}
+              <button className={`levelchip ${minutesAvail == null || !isShort ? 'on' : ''}`} onClick={() => setMinutesAvail(null)}>
+                <strong>Completo · {Math.round(fullSec / 60)} min</strong>
+              </button>
+            </div>
+            {isShort && <p className="muted">Versión corta: mismo calentamiento y enfriamiento, menos bloques y a las velocidades más altas del nivel. Cuenta como cardio hecho; para subir la exigencia se usa tu última sesión completa.</p>}
+          </section>
+
           <div className="levels">
             {(['dura', 'media', 'suave'] as Level[]).map((l) => (
               <button key={l} className={`levelchip ${level === l ? 'on' : ''}`} onClick={() => setLevelChoice(l)}>
@@ -505,7 +534,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
           </section>
 
           <section className="card">
-            <h3>Toda la rutina · {Math.round(total / 60)} min</h3>
+            <h3>{isShort ? 'Versión corta' : 'Toda la rutina'} · {Math.round(total / 60)} min</h3>
             <ol className="seglist">
               {segs.map((s, i) => {
                 const from = t

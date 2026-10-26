@@ -142,10 +142,74 @@ export function easyWalk(minutes: number, reduced: boolean): Segment[] {
   return [s(60, 4.5, 1), s(120, 5.0, 2), s(steady, 5.5, 3), s(180, 5.0, 2), s(180, 4.5, 1)]
 }
 
-export function buildSession(level: Level, phase: Phase, cfg: IntervalConfig, reduced: boolean): Segment[] {
-  if (level === 'dura') return hardSession(cfg, phase)
-  if (level === 'media') return mediumSession(cfg, phase)
-  return easyWalk(levelMinutes('suave', phase), reduced)
+/** Tiempo mínimo de cardio que se ofrece (min). */
+export const MIN_CARDIO_MIN = 10
+
+const round15 = (sec: number) => Math.floor(sec / 15) * 15
+
+/**
+ * Versión corta del nivel dura para `minutes` minutos: mismo calentamiento progresivo (mínimo 3-4 min) y mismo enfriamiento,
+ * recuperaciones cortas (30-45 s) y bloques de 90-300 s. Con poco tiempo caben menos bloques, así que los que quedan van
+ * a las velocidades más altas (9,5-10 km/h). Nunca supera 10 km/h. El total es exactamente `minutes`.
+ */
+export function compactHard(cfg: IntervalConfig, minutes: number): Segment[] {
+  const total = Math.round(minutes * 60)
+  const warmSpeeds = minutes >= 12 ? [5, 6, 7, 8] : [5, 6, 7]
+  const rec = Math.min(45, Math.max(30, cfg.recoverySec))
+  const speeds = [9.5, 9.5, 10.0, cfg.lastBlockSpeed]
+  let n = 4
+  let d = 0
+  for (; n >= 2; n--) {
+    d = round15((total - warmSpeeds.length * 60 - 60 - rec * (n + 1)) / n)
+    if (d >= 90) break
+  }
+  n = Math.max(2, n)
+  d = Math.min(300, Math.max(90, round15((total - warmSpeeds.length * 60 - 60 - rec * (n + 1)) / n)))
+  const out: Segment[] = []
+  for (const sp of warmSpeeds) out.push(seg('Calentamiento', 60, sp, 1, 'warm'))
+  const use = speeds.slice(4 - n)
+  use.forEach((v, i) => {
+    out.push(seg(i === 0 ? 'Recuperación antes del bloque 1' : `Recuperación ${i}`, rec, REC_SPEED, 1, 'rec'))
+    out.push(seg(`Bloque ${i + 1}`, d, v, 1, 'fast'))
+  })
+  out.push(seg('Última recuperación (test de habla)', rec, REC_SPEED, 1, 'rec'))
+  const used = out.reduce((a, s) => a + s.sec, 0)
+  out.push(seg('Enfriamiento', Math.max(60, total - used), 4.5, 0, 'cool'))
+  return out
+}
+
+/** Versión corta del nivel media: calentamiento 5-6-7-8, 1-3 bloques continuos a la velocidad media y enfriamiento. */
+export function compactMedium(cfg: IntervalConfig, minutes: number): Segment[] {
+  const total = Math.round(minutes * 60)
+  const v = cfg.mediumSpeed
+  const fixed = 4 * 60 + 60 + 60 // calentamiento + recuperación previa + enfriamiento
+  let n = 3
+  for (; n > 1; n--) {
+    if ((total - fixed - 90 * (n - 1)) / n >= 180) break
+  }
+  const d = Math.min(420, Math.max(120, round15((total - fixed - 90 * (n - 1)) / n)))
+  const out: Segment[] = []
+  for (const sp of [5, 6, 7, 8]) out.push(seg('Calentamiento', 60, sp, 1, 'warm'))
+  out.push(seg('Recuperación antes del bloque 1', 60, REC_SPEED, 1, 'rec'))
+  for (let i = 0; i < n; i++) {
+    out.push(seg(i === n - 1 ? `Bloque ${i + 1} (test de habla en el último minuto)` : `Bloque ${i + 1}`, d, v, 1, 'fast'))
+    if (i < n - 1) out.push(seg(`Recuperación ${i + 1}`, 90, REC_SPEED, 1, 'rec'))
+  }
+  const used = out.reduce((a, s) => a + s.sec, 0)
+  out.push(seg('Enfriamiento', Math.max(60, total - used), 4.5, 0, 'cool'))
+  return out
+}
+
+/**
+ * Sesión completa del nivel, o su versión corta si `minutes` es menor que la duración completa (mínimo 10 min).
+ */
+export function buildSession(level: Level, phase: Phase, cfg: IntervalConfig, reduced: boolean, minutes: number | null = null): Segment[] {
+  const full = level === 'dura' ? hardSession(cfg, phase) : level === 'media' ? mediumSession(cfg, phase) : easyWalk(levelMinutes('suave', phase), reduced)
+  if (minutes == null || minutes * 60 >= totalSeconds(full)) return full
+  const m = Math.max(MIN_CARDIO_MIN, minutes)
+  if (level === 'dura') return compactHard(cfg, m)
+  if (level === 'media') return compactMedium(cfg, m)
+  return easyWalk(m, reduced)
 }
 
 export function totalSeconds(segs: Segment[]): number {

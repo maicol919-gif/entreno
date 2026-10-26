@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  compactHard,
+  compactMedium,
+  MIN_CARDIO_MIN,
   speechWindow,
   DEFAULT_CONFIG,
   LEVEL_MINUTES,
@@ -266,5 +269,38 @@ describe('speechWindow', () => {
   })
   it('suave: sin test', () => {
     expect(speechWindow(easyWalk(30, false))).toBeNull()
+  })
+})
+
+describe('sesiones cortas', () => {
+  const cfg = { recoverySec: 45, lastBlockSpeed: 10, mediumSpeed: 8.5 }
+  it('dura: el total es exactamente el tiempo pedido y nunca pasa de 10 km/h', () => {
+    for (const m of [10, 12, 15, 18, 19]) {
+      const segs = compactHard(cfg, m)
+      expect(segs.reduce((a, s) => a + s.sec, 0)).toBe(m * 60)
+      expect(Math.max(...segs.map((s) => s.speed))).toBeLessThanOrEqual(10)
+      expect(segs.some((s) => s.label.includes('test de habla'))).toBe(true)
+      expect(segs[segs.length - 1].kind).toBe('cool')
+    }
+  })
+  it('dura: con 10 min caben 2 bloques a 10 km/h y al último bloque configurado; el calentamiento sube progresivamente', () => {
+    const segs = compactHard(cfg, 10)
+    expect(segs.filter((s) => s.kind === 'fast').map((s) => s.speed)).toEqual([10, 10])
+    expect(segs.filter((s) => s.kind === 'warm').map((s) => s.speed)).toEqual([5, 6, 7])
+  })
+  it('media: total exacto, test de habla en el último bloque', () => {
+    for (const m of [10, 12, 15, 20, 24]) {
+      const segs = compactMedium(cfg, m)
+      expect(segs.reduce((a, s) => a + s.sec, 0)).toBe(m * 60)
+      expect(segs.filter((s) => s.kind === 'fast').pop()!.label).toContain('test de habla')
+    }
+  })
+  it('buildSession: sin límite o con tiempo de sobra devuelve la sesión completa', () => {
+    const full = buildSession('dura', 0, cfg, false, null)
+    expect(buildSession('dura', 0, cfg, false, 60)).toEqual(full)
+    expect(buildSession('dura', 0, cfg, false, 20).reduce((a, s) => a + s.sec, 0)).toBe(full.reduce((a, s) => a + s.sec, 0))
+  })
+  it('suave: la caminata se acorta al tiempo pedido', () => {
+    expect(buildSession('suave', 0, cfg, false, MIN_CARDIO_MIN).reduce((a, s) => a + s.sec, 0)).toBe(MIN_CARDIO_MIN * 60)
   })
 })

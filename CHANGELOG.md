@@ -3,6 +3,10 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.14 · 2026-10-26
+- **Cardio según tu tiempo:** en Cardio siempre se pregunta "¿Cuánto tiempo tienes para el cardio?" (mínimo 10 min, o completo). Si tienes menos que el cardio completo de tu nivel, la app arma una versión corta: mismo calentamiento progresivo y enfriamiento, menos bloques y a las velocidades más altas (nunca más de 10 km/h). El test de habla se hace igual.
+- Una sesión corta cuenta como cardio hecho. Solo puede bajar la exigencia (si el habla no pasó de la mitad); para subirla se usa tu última sesión completa.
+
 ## 3.13 · 2026-10-26
 - **Aviso del test de habla en el cardio guiado:** 20 s antes aparece "Prepárate"; en el momento aparece un cartel amarillo abajo con la frase pasando, cuenta atrás, vibración y pitidos. Intervalos: últimos 15 s de la última recuperación. Media: último minuto del último bloque.
 - **Rotación:** Crunch abdominal máquina entra como opción de abdomen (Día 2 bloque B, Día 4 bloque C) y Press de hombros máquina en Día 3 bloque B (en lugar de encogimientos).
