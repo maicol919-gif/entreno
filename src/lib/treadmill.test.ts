@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  speechWindow,
   DEFAULT_CONFIG,
   LEVEL_MINUTES,
   buildSession,
@@ -241,5 +242,29 @@ describe('partido cerca', () => {
   it('combina con el tope del día', () => {
     expect(capLevel(capLevel('media', 'dura'), matchCap('no'))).toBe('media')
     expect(capLevel(capLevel('dura', 'media'), matchCap('manana'))).toBe('suave')
+  })
+})
+
+describe('speechWindow', () => {
+  it('intervalos: últimos 15 s de la última recuperación', () => {
+    const segs = hardSession({ recoverySec: 45, lastBlockSpeed: 10, mediumSpeed: 8.5 }, 0)
+    const w = speechWindow(segs)!
+    const lastRec = segs[segs.length - 2]
+    const end = segs.slice(0, -1).reduce((a, s) => a + s.sec, 0)
+    expect(lastRec.label).toContain('test de habla')
+    expect(w.to).toBe(end)
+    expect(w.to - w.from).toBe(15)
+  })
+  it('recuperación de 30 s: ventana de 15 s, nunca antes de los 10 s caminando', () => {
+    const segs = hardSession({ recoverySec: 30, lastBlockSpeed: 10, mediumSpeed: 8.5 }, 0)
+    const w = speechWindow(segs)!
+    expect(w.to - w.from).toBe(15)
+  })
+  it('media: último minuto del último bloque', () => {
+    const w = speechWindow(mediumSession({ recoverySec: 60, lastBlockSpeed: 10, mediumSpeed: 8.5 }, 0))!
+    expect(w.to - w.from).toBe(60)
+  })
+  it('suave: sin test', () => {
+    expect(speechWindow(easyWalk(30, false))).toBeNull()
   })
 })

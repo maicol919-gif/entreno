@@ -162,6 +162,25 @@ export function locate(segs: Segment[], elapsed: number): { index: number; left:
   return null
 }
 
+/**
+ * Ventana en la que hay que decir la frase del test de habla (segundos desde el inicio del cardio).
+ * Intervalos: últimos 15 s de la última recuperación (nunca antes de los 10 s de haber empezado a caminar).
+ * Media: último minuto del último bloque. Suave: no hay test.
+ */
+export function speechWindow(segs: Segment[]): { from: number; to: number } | null {
+  let acc = 0
+  let found: { from: number; to: number } | null = null
+  for (const s of segs) {
+    if (s.label.includes('test de habla')) {
+      const len = s.kind === 'rec' ? 15 : 60
+      const startOffset = Math.max(s.kind === 'rec' ? 10 : 0, s.sec - len)
+      found = { from: acc + startOffset, to: acc + s.sec }
+    }
+    acc += s.sec
+  }
+  return found
+}
+
 export type SpeechTest = 'entera' | 'dos' | 'mitad'
 
 export interface LastInterval {

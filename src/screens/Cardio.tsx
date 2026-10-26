@@ -16,6 +16,7 @@ import {
   discomfortHold,
   intervalWarnings,
   kindOf,
+  speechWindow,
   legHints,
   levelFor,
   levelMinutes,
@@ -151,6 +152,9 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const elapsed = run ? Math.max(0, Math.floor((now - run.start) / 1000)) : 0
   const pos = run ? locate(segs, elapsed) : null
   const finished = run != null && pos == null
+  const sw = useMemo(() => speechWindow(segs), [segs])
+  const speechNow = run != null && sw != null && elapsed >= sw.from && elapsed < sw.to
+  const speechSoon = run != null && sw != null && elapsed >= sw.from - 20 && elapsed < sw.from
 
   useEffect(() => {
     if (!run || finished) return
@@ -171,6 +175,14 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
       lastIndex.current = idx
     }
   }, [run, pos, segs])
+
+  // aviso fuerte cuando llega el momento de decir la frase del test de habla
+  useEffect(() => {
+    if (!speechNow) return
+    navigator.vibrate?.([400, 150, 400, 150, 400])
+    beep()
+    window.setTimeout(beep, 350)
+  }, [speechNow])
 
   // el tramo actual siempre queda visible en la lista
   useEffect(() => {
@@ -290,6 +302,19 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
     return (
       <div className="screen">
         {flash && <div key={flash.key} className={`flash ${flash.kind}`} aria-hidden="true" />}
+        {(speechNow || speechSoon) && sw && (
+          <div className={`speechbanner ${speechNow ? 'now' : 'soon'}`} role="alert">
+            {speechNow ? (
+              <>
+                <strong>¡DI LA FRASE AHORA! · {fmt(Math.max(0, sw.to - elapsed))}</strong>
+                <div className="marquee"><span>“{SPEECH_PHRASE}” · “{SPEECH_PHRASE}” · “{SPEECH_PHRASE}”</span></div>
+                <small>Respira normal, sin tomar aire antes. Dila de corrido.</small>
+              </>
+            ) : (
+              <strong>Prepárate: test de habla en {Math.max(1, Math.ceil(sw.from - elapsed))} s</strong>
+            )}
+          </div>
+        )}
         <div className={`runcard ${seg.kind}`}>
           <p className="runlabel">{seg.label}</p>
           <div className="runpanels">

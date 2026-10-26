@@ -436,9 +436,13 @@ select date,
        round(sum(extract(epoch from (end_at - start_at)) / 60))::int as minutes,
        round(coalesce(sum(extract(epoch from (end_at - start_at)) / 60) filter (where kind = 'noche'), 0))::int as night_minutes,
        round(coalesce(sum(extract(epoch from (end_at - start_at)) / 60) filter (where kind = 'siesta'), 0))::int as nap_minutes,
-       round(avg(quality) filter (where kind = 'noche'), 1) as quality
+       round(avg(quality) filter (where kind = 'noche'), 1) as quality,
+       max(wake_reason) filter (where kind = 'noche') as wake_reason
 from public.sleep_log group by date;
 grant select on public.v_sleep_daily to authenticated;
+
+-- cómo te despertaste: solo, despertador o ruido
+alter table public.sleep_log add column if not exists wake_reason text check (wake_reason in ('solo', 'despertador', 'ruido'));
 
 -- 3.12: una sola sesión en curso por día de rutina y fecha
 create unique index if not exists sessions_one_open_per_day on public.sessions (user_id, date, day_id) where status = 'in_progress';
