@@ -33,6 +33,10 @@ export interface IntervalConfig {
 
 export const DEFAULT_CONFIG: IntervalConfig = { recoverySec: 60, lastBlockSpeed: 10.0, mediumSpeed: 8.5 }
 export const MIN_RECOVERY_SEC = 30
+/** velocidad máxima del último bloque duro (km/h) */
+export const MAX_LAST_BLOCK = 11.0
+/** sesiones estables (sin molestia, recuperación mínima, misma velocidad) antes de subir el último bloque */
+export const STABLE_SESSIONS = 3
 export const MEDIUM_SPEED_RANGE: [number, number] = [7.5, 9.5]
 
 export const SPEECH_PHRASE = 'Hoy es viernes y estoy terminando el último bloque.'
@@ -150,7 +154,7 @@ const round15 = (sec: number) => Math.floor(sec / 15) * 15
 /**
  * Versión corta del nivel dura para `minutes` minutos: mismo calentamiento progresivo (mínimo 3-4 min) y mismo enfriamiento,
  * recuperaciones cortas (30-45 s) y bloques de 90-300 s. Con poco tiempo caben menos bloques, así que los que quedan van
- * a las velocidades más altas (9,5-10 km/h). Nunca supera 10 km/h. El total es exactamente `minutes`.
+ * a las velocidades más altas (9,5-10 km/h). Nunca supera la velocidad del último bloque configurada (10-11 km/h). El total es exactamente `minutes`.
  */
 export function compactHard(cfg: IntervalConfig, minutes: number): Segment[] {
   const total = Math.round(minutes * 60)
@@ -261,7 +265,21 @@ export interface NextInterval {
 }
 
 /** Configuración de la próxima sesión DURA. Una sola variable por sesión. */
-export function nextInterval(last: LastInterval | null): NextInterval {
+/**
+ * Sesiones duras completas más recientes (la más nueva primero) que cumplen las condiciones para subir el último bloque:
+ * recuperación en el mínimo, misma velocidad del último bloque que la actual y sin molestia.
+ */
+function stableCount(recent: LastInterval[], speed: number): number {
+  let n = 0
+  for (const r of recent) {
+    const p = { ...DEFAULT_CONFIG, ...r.protocol }
+    if (r.discomfort || p.recoverySec > MIN_RECOVERY_SEC || p.lastBlockSpeed !== speed) break
+    n += 1
+  }
+  return n
+}
+
+export function nextInterval(last: LastInterval | null, recent: LastInterval[] = []): NextInterval {
   if (!last) {
     return {
       config: DEFAULT_CONFIG,
@@ -275,6 +293,22 @@ export function nextInterval(last: LastInterval | null): NextInterval {
     return {
       config: { ...prev, lastBlockSpeed: v },
       message: `Test de habla: no pasaste de la mitad. Baja el último bloque a ${v.toFixed(1)} km/h; el resto igual.`,
+      suggestSoft: false,
+    }
+  }
+  if ((last.speech_test === 'entera' || last.speech_test === 'dos') && prev.recoverySec <= MIN_RECOVERY_SEC && prev.lastBlockSpeed < MAX_LAST_BLOCK) {
+    const stable = stableCount(recent, prev.lastBlockSpeed)
+    if (stable >= STABLE_SESSIONS) {
+      const v = Math.min(MAX_LAST_BLOCK, Math.round((prev.lastBlockSpeed + 0.5) * 10) / 10)
+      return {
+        config: { ...prev, lastBlockSpeed: v },
+        message: `Llevas ${STABLE_SESSIONS} sesiones estables sin molestia con recuperación de ${prev.recoverySec} s: sube SOLO el último bloque a ${v.toFixed(1)} km/h. El resto igual.`,
+        suggestSoft: false,
+      }
+    }
+    return {
+      config: prev,
+      message: `Recuperación en el mínimo (${prev.recoverySec} s). Para subir el último bloque a ${(prev.lastBlockSpeed + 0.5).toFixed(1)} km/h faltan sesiones estables sin molestia: llevas ${stable} de ${STABLE_SESSIONS}. Repite la sesión.`,
       suggestSoft: false,
     }
   }

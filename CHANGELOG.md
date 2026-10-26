@@ -3,6 +3,9 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.15 · 2026-10-26
+- **Superar 10 km/h, con reglas:** el último bloque duro sube +0,5 km/h (hasta 11,0) cuando llevas 3 sesiones duras completas seguidas, sin molestia, con la recuperación ya en el mínimo (30 s) y el test de habla en "entera" o "en dos". Cada subida exige volver a acumular 3 sesiones a la nueva velocidad. Si el habla no pasa de la mitad, baja 0,5 km/h. Las sesiones cortas no cuentan para subir.
+
 ## 3.14 · 2026-10-26
 - **Cardio según tu tiempo:** en Cardio siempre se pregunta "¿Cuánto tiempo tienes para el cardio?" (mínimo 10 min, o completo). Si tienes menos que el cardio completo de tu nivel, la app arma una versión corta: mismo calentamiento progresivo y enfriamiento, menos bloques y a las velocidades más altas (nunca más de 10 km/h). El test de habla se hace igual.
 - Una sesión corta cuenta como cardio hecho. Solo puede bajar la exigencia (si el habla no pasó de la mitad); para subirla se usa tu última sesión completa.

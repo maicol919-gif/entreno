@@ -137,7 +137,12 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
     const l = isShortLog(first) && first.speech_test !== 'mitad' ? same.find((x) => !isShortLog(x)) : first
     return l ? { protocol: l.protocol ?? null, speech_test: l.speech_test, discomfort: l.discomfort } : null
   }
-  const nextHard = useMemo(() => nextInterval(lastOf('intervalos')), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
+  const recentHard = (): LastInterval[] =>
+    (logs ?? [])
+      .filter((x) => x.kind === 'intervalos' && !isShortLog(x))
+      .slice(0, 3)
+      .map((l) => ({ protocol: l.protocol ?? null, speech_test: l.speech_test, discomfort: l.discomfort }))
+  const nextHard = useMemo(() => nextInterval(lastOf('intervalos'), recentHard()), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
   const nextMed = useMemo(() => nextMedium(lastOf('media')), [logs]) // eslint-disable-line react-hooks/exhaustive-deps
   const warnings = useMemo(() => intervalWarnings(logs ?? [], today, sevenDaysAgo()), [logs, today])
   const hints = useMemo(() => legHints(legCtx), [legCtx])

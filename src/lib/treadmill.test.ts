@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_LAST_BLOCK,
+  STABLE_SESSIONS,
   compactHard,
   compactMedium,
   MIN_CARDIO_MIN,
@@ -302,5 +304,32 @@ describe('sesiones cortas', () => {
   })
   it('suave: la caminata se acorta al tiempo pedido', () => {
     expect(buildSession('suave', 0, cfg, false, MIN_CARDIO_MIN).reduce((a, s) => a + s.sec, 0)).toBe(MIN_CARDIO_MIN * 60)
+  })
+})
+
+describe('subir el último bloque más allá de 10 km/h', () => {
+  const at = (speed: number, discomfort = false, speech: 'entera' | 'dos' | 'mitad' = 'entera') => ({ protocol: { recoverySec: 30, lastBlockSpeed: speed }, speech_test: speech, discomfort })
+  it('con 3 sesiones estables sube 0,5 km/h', () => {
+    const recent = [at(10), at(10), at(10)]
+    expect(nextInterval(recent[0], recent).config.lastBlockSpeed).toBe(10.5)
+  })
+  it('con menos de 3 sesiones estables no sube y dice cuántas lleva', () => {
+    const recent = [at(10), at(10)]
+    const n = nextInterval(recent[0], recent)
+    expect(n.config.lastBlockSpeed).toBe(10)
+    expect(n.message).toContain('2 de ' + STABLE_SESSIONS)
+  })
+  it('una molestia en las últimas 3 lo impide', () => {
+    const recent = [at(10), at(10, true), at(10)]
+    expect(nextInterval(recent[0], recent).config.lastBlockSpeed).toBe(10)
+  })
+  it('después de subir hay que volver a acumular 3 sesiones a la nueva velocidad', () => {
+    const recent = [at(10.5), at(10), at(10)]
+    expect(nextInterval(recent[0], recent).config.lastBlockSpeed).toBe(10.5)
+  })
+  it('no pasa del máximo y baja si el habla no pasa de la mitad', () => {
+    const top = [at(MAX_LAST_BLOCK), at(MAX_LAST_BLOCK), at(MAX_LAST_BLOCK)]
+    expect(nextInterval(top[0], top).config.lastBlockSpeed).toBe(MAX_LAST_BLOCK)
+    expect(nextInterval(at(10.5, false, 'mitad'), [at(10.5, false, 'mitad')]).config.lastBlockSpeed).toBe(10)
   })
 })
