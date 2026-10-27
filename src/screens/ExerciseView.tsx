@@ -42,6 +42,8 @@ interface Props {
   sessionId: string
   rx: Prescription
   restSeconds: number
+  /** series de aproximación sugeridas antes de la primera serie de trabajo (no se registran) */
+  warmup?: number
   onBack: () => void
   /** nombre del siguiente ejercicio del día (null si es el último) */
   nextName: string | null
@@ -57,7 +59,7 @@ interface Props {
 
 const STAR_TEXT = ['No me gustó nada', 'Casi no me gustó', 'Normal', 'Me gustó', 'Me encantó']
 
-export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onBack, nextName, onNext, flag, alts, onReplace, onMissing }: Props) {
+export default function ExerciseView({ exercise, sessionId, rx, restSeconds, warmup = 0, onBack, nextName, onNext, flag, alts, onReplace, onMissing }: Props) {
   const [missingAlts, setMissingAlts] = useState<Exercise[] | null>(null)
   const [sets, setSets] = useState<SetRow[] | null>(null)
   const [past, setPast] = useState<PastSession[]>([])
@@ -316,6 +318,21 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, onB
           <p className="muted">Primera vez con este ejercicio.</p>
         )}
       </section>
+
+      {warmup > 0 && (
+        <section className="card">
+          <h3>Aproximación</h3>
+          <p>
+            {(() => {
+              const w = sugg?.targets?.[0]?.load_kg
+              const inc = exercise.min_increment_kg || 2.5
+              const r = (f: number) => (w ? String(Math.max(inc, Math.round((w * f) / inc) * inc)) : null)
+              const parts = warmup >= 2 ? [['8', r(0.5)], ['5', r(0.75)]] : [['6', r(0.6)]]
+              return 'Antes de la serie 1: ' + parts.map(([reps, kg]) => '1 × ' + reps + (kg ? ' con ' + kg + ' kg' : ' ligera')).join(' y ') + ', lejos del fallo. No se registran.'
+            })()}
+          </p>
+        </section>
+      )}
 
       {sugg && (
         <section className={`card sugg ${sugg.kind}`}>

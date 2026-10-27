@@ -15,6 +15,8 @@ export interface Run {
   match?: MatchSoon
   /** minutos de cardio disponibles (null = sesión completa) */
   minutes?: number | null
+  /** minutos de caminata suave extra */
+  extraMin?: number
 }
 
 /** Cardio guiado en curso. Se guarda la hora de inicio: el tiempo sigue corriendo aunque la página se recargue. */

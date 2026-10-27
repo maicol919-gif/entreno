@@ -82,6 +82,8 @@ function MatchChips({ value, onChange }: { value: MatchSoon; onChange: (m: Match
 }
 
 interface Props {
+  /** minutos de caminata suave extra que sugiere el plan de tiempo de hoy */
+  extraMin?: number
   plan: CardioPlan
   sessionId: string
   legCtx: LegContext
@@ -89,11 +91,12 @@ interface Props {
   onBack: () => void
 }
 
-export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props) {
+export default function Cardio({ plan, sessionId, legCtx, week, extraMin = 0, onBack }: Props) {
   const { clear: clearRest } = useRest()
   const saved = useRef(readRun())
   const [logs, setLogs] = useState<LogRow[] | null>(null)
   const [other, setOther] = useState(false)
+  const [useExtra, setUseExtra] = useState(true)
   /** minutos de cardio que tienes hoy (null = el cardio completo de tu nivel) */
   const [minutesAvail, setMinutesAvail] = useState<number | null>(saved.current?.minutes ?? null)
   const [feel, setFeel] = useState<LegsFeel | null>(saved.current?.feel ?? null)
@@ -162,9 +165,17 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
   const cfg: IntervalConfig = run?.cfg ?? { ...nextHard.config, mediumSpeed: nextMed.mediumSpeed }
   const ph = run?.phase ?? phaseEff
   const minutesEff = run ? (run.minutes ?? null) : minutesAvail
+  const extraEff = run ? run.extraMin ?? 0 : useExtra && minutesAvail == null && extraMin >= 5 ? extraMin : 0
   const fullSec = useMemo(() => (level ? totalSecondsFull(buildSessionFull(level, ph, cfg, reduced, null)) : 0), [level, ph, cfg, reduced])
   const isShort = minutesEff != null && minutesEff * 60 < fullSec
-  const segs: Segment[] = useMemo(() => (level ? buildSession(level, ph, cfg, reduced, minutesEff) : []), [level, ph, cfg, reduced, minutesEff])
+  const segs: Segment[] = useMemo(() => {
+    if (!level) return []
+    const base = buildSession(level, ph, cfg, reduced, minutesEff)
+    if (extraEff <= 0 || level === 'suave') return base
+    // la caminata extra va antes del enfriamiento, después de la última recuperación (test de habla)
+    const walk: Segment = { label: 'Caminata suave extra', sec: extraEff * 60, speed: 5.0, incline: 2, kind: 'rec' }
+    return [...base.slice(0, -1), walk, base[base.length - 1]]
+  }, [level, ph, cfg, reduced, minutesEff, extraEff])
   const total = totalSeconds(segs)
 
   const elapsed = run ? Math.max(0, Math.floor((now - run.start) / 1000)) : 0
@@ -237,7 +248,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
     if (!feel || !level) return
     clearRest()
     lastIndex.current = -1
-    const r: Run = { start: Date.now(), level, phase: phaseEff, cfg, reduced, sessionId, feel, match, minutes: isShort ? minutesEff : null }
+    const r: Run = { start: Date.now(), level, phase: phaseEff, cfg, reduced, sessionId, feel, match, minutes: isShort ? minutesEff : null, extraMin: extraEff }
     setNow(r.start)
     setRun(r)
     writeRun(r)
@@ -497,9 +508,14 @@ export default function Cardio({ plan, sessionId, legCtx, week, onBack }: Props)
                   <strong>{m} min</strong>
                 </button>
               ))}
-              <button className={`levelchip ${minutesAvail == null || !isShort ? 'on' : ''}`} onClick={() => setMinutesAvail(null)}>
+              <button className={`levelchip ${(minutesAvail == null || !isShort) && extraEff === 0 ? 'on' : ''}`} onClick={() => { setMinutesAvail(null); setUseExtra(false) }}>
                 <strong>Completo · {Math.round(fullSec / 60)} min</strong>
               </button>
+              {extraMin >= 5 && level !== 'suave' && (
+                <button className={`levelchip ${extraEff > 0 ? 'on' : ''}`} onClick={() => { setMinutesAvail(null); setUseExtra(true) }}>
+                  <strong>Completo + {extraMin} min suaves</strong>
+                </button>
+              )}
             </div>
             {isShort && <p className="muted">Versión corta: mismo calentamiento y enfriamiento, menos bloques y a las velocidades más altas del nivel. Cuenta como cardio hecho; para subir la exigencia se usa tu última sesión completa.</p>}
           </section>

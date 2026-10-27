@@ -3,6 +3,9 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.16 · 2026-10-27
+- **La app aprovecha todo el tiempo que marcas:** si el tiempo sobra, lo usa en este orden: 1) descanso de 3 min en los 3 ejercicios principales, 2) series de aproximación (guía, no se registran) en los primeros principales, 3) caminata suave extra tras el cardio (o cardio recomendado en días de piernas), 4) una serie extra en los principales (no en días de piernas, máx. 4). Nunca pasa del tiempo marcado. Si el tiempo no alcanza, recorta como antes.
+
 ## 3.15 · 2026-10-26
 - **Superar 10 km/h, con reglas:** el último bloque duro sube +0,5 km/h (hasta 11,0) cuando llevas 3 sesiones duras completas seguidas, sin molestia, con la recuperación ya en el mínimo (30 s) y el test de habla en "entera" o "en dos". Cada subida exige volver a acumular 3 sesiones a la nueva velocidad. Si el habla no pasa de la mitad, baja 0,5 km/h. Las sesiones cortas no cuentan para subir.
 

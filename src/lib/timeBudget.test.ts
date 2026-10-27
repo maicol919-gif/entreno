@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CORE_COUNT, MIN_SETS, cardioReserve, exerciseMinutes, fitToTime, type BudgetItem } from './timeBudget'
+import { planToTime, LONG_REST_SEC, CORE_COUNT, MIN_SETS, cardioReserve, exerciseMinutes, fitToTime, type BudgetItem } from './timeBudget'
 
 const day = (sets: number[]): BudgetItem[] => sets.map((s, i) => ({ id: `e${i + 1}`, sets: s, position: i + 1 }))
 
@@ -58,5 +58,43 @@ describe('fitToTime', () => {
   it('modelo de tiempo: 2 min de preparación + 3,2 por serie', () => {
     expect(exerciseMinutes(3)).toBeCloseTo(11.6)
     expect(exerciseMinutes(0)).toBe(0)
+  })
+})
+
+describe('planToTime (aprovechar el tiempo que sobra)', () => {
+  const opts = { restSec: 120, isLegDay: false, cardioOptional: false }
+  it('sin límite no añade nada', () => {
+    const r = planToTime(dia3, null, 25, opts)
+    expect(r.extras).toEqual([])
+    expect(r.longRest).toEqual([])
+  })
+  it('si no cabe, solo recorta (no añade extras)', () => {
+    const r = planToTime(dia3, 60, 25, opts)
+    expect(r.trimmed).toBe(true)
+    expect(r.extras).toEqual([])
+  })
+  it('con tiempo de sobra añade extras y nunca pasa del tiempo marcado', () => {
+    for (const avail of [90, 105, 120]) {
+      const r = planToTime(dia3, avail, 25, opts)
+      expect(r.totalMin).toBeLessThanOrEqual(avail)
+    }
+    const r = planToTime(dia3, 120, 25, opts)
+    expect(r.longRest.length).toBe(CORE_COUNT)
+    expect(r.extras.length).toBeGreaterThan(1)
+    expect(LONG_REST_SEC).toBe(180)
+  })
+  it('el orden de prioridad: primero descanso largo y aproximación', () => {
+    const r = planToTime(day([3, 3, 3, 2, 2]), 100, 25, opts)
+    expect(r.extras[0]).toContain('Descanso')
+  })
+  it('en día de piernas no añade series y recomienda cardio si es opcional', () => {
+    const legs = planToTime(day([3, 3, 3, 2, 3, 3]), 105, 0, { restSec: 120, isLegDay: true, cardioOptional: true }, 0)
+    expect(legs.sets).toEqual({ e1: 3, e2: 3, e3: 3, e4: 2, e5: 3, e6: 3 })
+    expect(legs.extraCardioMin).toBeGreaterThan(0)
+    expect(legs.totalMin).toBeLessThanOrEqual(105)
+  })
+  it('máximo 4 series por principal', () => {
+    const r = planToTime(day([4, 4, 4]), 120, 0, opts)
+    for (const id of ['e1', 'e2', 'e3']) expect(r.sets[id]).toBeLessThanOrEqual(4)
   })
 })

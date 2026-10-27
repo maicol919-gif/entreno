@@ -10,7 +10,7 @@ import type { Exercise, RoutineItem, Session } from '../types'
 import ExerciseView from './ExerciseView'
 import Cardio from './Cardio'
 import { cardioPhase, levelMinutes, type LegContext } from '../lib/treadmill'
-import { TIME_OPTIONS, fitToTime } from '../lib/timeBudget'
+import { LONG_REST_SEC, TIME_OPTIONS, planToTime } from '../lib/timeBudget'
 import { useRest } from '../rest'
 import { useKeepAwake } from '../lib/keepAwake'
 
@@ -324,13 +324,14 @@ export default function Today() {
 
   // tiempo disponible (incluye el cardio): se recortan series y ejercicios de lo menos importante a lo más importante
   const cardioEstimate = cardio && !cardio.optional ? levelMinutes('media', cardioPhase(week).phase) : 0
-  const timePlan = fitToTime(
+  const timePlan = planToTime(
     dayItems.flatMap((item) => {
       const ex = exById.get(item.exercise_id)
       return ex ? [{ id: item.id, sets: baseRx(item, ex).sets, position: item.position }] : []
     }),
     budget,
     cardioEstimate,
+    { restSec: settings.rest_seconds, isLegDay: !!day?.name.startsWith('Pierna'), cardioOptional: cardio?.optional ?? true },
   )
   function rxFor(item: RoutineItem, ex: Exercise): Prescription {
     const p = baseRx(item, ex)
@@ -374,7 +375,8 @@ export default function Today() {
         exercise={ex}
         sessionId={session.id}
         rx={rxFor(openItem, ex)}
-        restSeconds={settings.rest_seconds}
+        restSeconds={budget != null && timePlan.longRest.includes(openItem.id) ? LONG_REST_SEC : settings.rest_seconds}
+        warmup={budget != null ? timePlan.warmup[openItem.id] ?? 0 : 0}
         onBack={() => setOpenItem(null)}
         nextName={nextEx?.name ?? (cardio ? 'Cardio en cinta' : null)}
         onNext={() => {
@@ -394,7 +396,7 @@ export default function Today() {
   }
 
   if (openCardio && session && cardio) {
-    return <Cardio plan={cardio} sessionId={session.id} legCtx={legCtx} week={week} onBack={() => setOpenCardio(false)} />
+    return <Cardio plan={cardio} sessionId={session.id} legCtx={legCtx} week={week} extraMin={budget != null ? timePlan.extraCardioMin : 0} onBack={() => setOpenCardio(false)} />
   }
 
   if (loading) return <div className="screen"><p>Cargando…</p></div>
@@ -504,6 +506,11 @@ export default function Today() {
                 <p className="muted">
                   Se omiten por tiempo: {skippedItems.map((i) => exById.get(i.exercise_id)?.name).filter(Boolean).join(', ')}.
                 </p>
+              )}
+              {budget != null && timePlan.extras.length > 0 && (
+                <ul className="muted">
+                  {timePlan.extras.map((x) => <li key={x}>{x}</li>)}
+                </ul>
               )}
               {timePlan.overBudget && <p className="fixed">Aun recortando, esta rutina pide más de {budget} min. Puedes empezar igual y terminar cuando debas.</p>}
               {day && cycleDays[day.weekday] && (
