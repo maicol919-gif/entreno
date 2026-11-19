@@ -69,6 +69,17 @@ const LEVEL_HINT: Record<Level, string> = {
   suave: 'Caminata en cuesta (esfuerzo 3-4)',
 }
 
+/** Protocolo personal compartido por Maycol. Se guarda separado del progreso automático de la cinta. */
+const PERSONAL_PROTOCOL: Segment[] = [
+  { label: 'Calentamiento', sec: 3 * 60, speed: 4.0, incline: 2, kind: 'warm' },
+  { label: 'Entrada en ritmo', sec: 5 * 60, speed: 4.5, incline: 8, kind: 'warm' },
+  { label: 'Bloque de trabajo', sec: 5 * 60, speed: 5.0, incline: 10, kind: 'fast' },
+  { label: 'Pico de intensidad', sec: 5 * 60, speed: 5.0, incline: 14, kind: 'fast' },
+  { label: 'Segundo bloque', sec: 5 * 60, speed: 5.5, incline: 10, kind: 'fast' },
+  { label: 'Bajada', sec: 4 * 60, speed: 4.5, incline: 5, kind: 'rec' },
+  { label: 'Enfriamiento', sec: 3 * 60, speed: 3.5, incline: 0, kind: 'cool' },
+]
+
 function MatchChips({ value, onChange }: { value: MatchSoon; onChange: (m: MatchSoon) => void }) {
   return (
     <div className="levels">
@@ -86,16 +97,18 @@ interface Props {
   extraMin?: number
   plan: CardioPlan
   sessionId: string
+  sessionDate: string
   legCtx: LegContext
   week: number
   onBack: () => void
 }
 
-export default function Cardio({ plan, sessionId, legCtx, week, extraMin = 0, onBack }: Props) {
+export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, extraMin = 0, onBack }: Props) {
   const { clear: clearRest } = useRest()
   const saved = useRef(readRun())
   const [logs, setLogs] = useState<LogRow[] | null>(null)
   const [other, setOther] = useState(false)
+  const [route, setRoute] = useState<'choose' | 'guided' | 'custom'>(() => saved.current?.mode === 'custom' ? 'custom' : 'choose')
   const [useExtra, setUseExtra] = useState(true)
   /** minutos de cardio que tienes hoy (null = el cardio completo de tu nivel) */
   const [minutesAvail, setMinutesAvail] = useState<number | null>(saved.current?.minutes ?? null)
@@ -169,6 +182,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, extraMin = 0, on
   const fullSec = useMemo(() => (level ? totalSecondsFull(buildSessionFull(level, ph, cfg, reduced, null)) : 0), [level, ph, cfg, reduced])
   const isShort = minutesEff != null && minutesEff * 60 < fullSec
   const segs: Segment[] = useMemo(() => {
+    if (run?.mode === 'custom') return run.customSegments ?? []
     if (!level) return []
     const base = buildSession(level, ph, cfg, reduced, minutesEff)
     if (extraEff <= 0 || level === 'suave') return base
@@ -248,7 +262,20 @@ export default function Cardio({ plan, sessionId, legCtx, week, extraMin = 0, on
     if (!feel || !level) return
     clearRest()
     lastIndex.current = -1
-    const r: Run = { start: Date.now(), level, phase: phaseEff, cfg, reduced, sessionId, feel, match, minutes: isShort ? minutesEff : null, extraMin: extraEff }
+    const r: Run = { start: Date.now(), sessionId, sessionDate, level, phase: phaseEff, cfg, reduced, feel, match, minutes: isShort ? minutesEff : null, extraMin: extraEff }
+    setNow(r.start)
+    setRun(r)
+    writeRun(r)
+  }
+
+  function beginPersonalProtocol() {
+    clearRest()
+    lastIndex.current = -1
+    const r: Run = {
+      start: Date.now(), mode: 'custom', protocolTitle: 'Caminata inclinada',
+      customSegments: PERSONAL_PROTOCOL, sessionDate, level: 'suave', phase: 0, cfg, reduced: false,
+      sessionId, feel: null, match: 'no',
+    }
     setNow(r.start)
     setRun(r)
     writeRun(r)
@@ -283,17 +310,22 @@ export default function Cardio({ plan, sessionId, legCtx, week, extraMin = 0, on
     savingRef.current = true
     setSaving(true)
     setErr(null)
-    const protocol =
-      run.level === 'dura'
+    const protocol = run.mode === 'custom'
+      ? {
+          type: 'protocolo_personalizado',
+          title: run.protocolTitle ?? 'Protocolo personalizado',
+          steps: (run.customSegments ?? []).map((s) => ({ label: s.label, minutes: s.sec / 60, speed_kmh: s.speed, incline_pct: s.incline })),
+        }
+      : run.level === 'dura'
         ? { ...run.cfg, phase: run.phase }
         : run.level === 'media'
           ? { mediumSpeed: run.cfg.mediumSpeed, phase: run.phase }
           : { phase: run.phase }
-    if (run.minutes != null) Object.assign(protocol, { short: true, minutes: run.minutes })
+    if (run.mode !== 'custom' && run.minutes != null) Object.assign(protocol, { short: true, minutes: run.minutes })
     const { error } = await supabase.from('cardio_logs').insert({
       session_id: run.sessionId,
-      date: toISODate(new Date(run.start)),
-      kind: kindOf(run.level),
+      date: run.sessionDate ?? sessionDate,
+      kind: run.mode === 'custom' ? 'otra' : kindOf(run.level),
       machine: 'Trotadora',
       minutes: Math.max(1, Math.round((workedSec / 60) * 10) / 10),
       rpe: effort,
@@ -391,7 +423,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, extraMin = 0, on
   if (run && phase === 'form') {
     return (
       <div className="screen">
-        <h2>{completed ? 'Cardio completo' : 'Cardio parcial'} · {LEVEL_LABEL[run.level]}</h2>
+        <h2>{completed ? 'Cardio completo' : 'Cardio parcial'} · {run.mode === 'custom' ? run.protocolTitle : LEVEL_LABEL[run.level]}</h2>
         <p className="muted">Tiempo: {fmt(workedSec)}</p>
 
         {needsSpeech && (
@@ -448,14 +480,67 @@ export default function Cardio({ plan, sessionId, legCtx, week, extraMin = 0, on
     )
   }
 
-  if (other) return <OtherMachine sessionId={sessionId} onBack={() => setOther(false)} onSaved={onBack} />
+  if (other) return <OtherMachine sessionId={sessionId} sessionDate={sessionDate} onBack={() => setOther(false)} onSaved={onBack} />
+
+  if (route === 'choose') return (
+    <div className="screen cardio-hub">
+      <button className="link back" onClick={onBack}>← Sesión</button>
+      <span className="eyebrow">CIERRE DE LA SESIÓN</span>
+      <h2>¿Cómo quieres hacer cardio hoy?</h2>
+      <p className="muted">Elige la opción que mejor encaja con tus piernas, tu motivación y el tiempo real que tienes.</p>
+      <section className="card cardio-route-list">
+        <button className="cardio-route" onClick={() => setRoute('guided')}>
+          <span className="route-icon recommended">↗</span>
+          <span><strong>Seguir el plan de Entreno</strong><small>Elige cómo están las piernas y recibe el protocolo guiado de hoy.</small></span>
+          <b aria-hidden="true">›</b>
+        </button>
+        <button className="cardio-route" onClick={() => setRoute('custom')}>
+          <span className="route-icon personal">30′</span>
+          <span><strong>Mi caminata inclinada</strong><small>Tu protocolo de 7 tramos · 30 min · sin correr.</small></span>
+          <b aria-hidden="true">›</b>
+        </button>
+        <button className="cardio-route" onClick={() => setOther(true)}>
+          <span className="route-icon machine">＋</span>
+          <span><strong>Otra máquina o actividad</strong><small>Registra el cardio que sí hiciste sin cambiar la progresión de la cinta.</small></span>
+          <b aria-hidden="true">›</b>
+        </button>
+      </section>
+      <p className="muted cardio-separation">Los protocolos personalizados se guardan en tu historial, pero no suben ni bajan automáticamente el nivel recomendado de la cinta.</p>
+    </div>
+  )
+
+  if (route === 'custom') {
+    let elapsedPlan = 0
+    return (
+      <div className="screen">
+        <button className="link back" onClick={() => setRoute('choose')}>← Opciones de cardio</button>
+        <span className="eyebrow">TU PROTOCOLO · 30 MIN</span>
+        <h2>Caminata inclinada</h2>
+        <p className="muted">7 tramos · caminando todo el tiempo · se guarda como alternativa personal.</p>
+        <section className="card">
+          <ol className="seglist">
+            {PERSONAL_PROTOCOL.map((s, i) => {
+              const start = elapsedPlan
+              elapsedPlan += s.sec
+              return <li key={i} className={`next ${s.kind}`}>
+                <span className="when">{fmt(start)}</span><span className="inc">{s.incline} %</span>
+                <span className="spd">{s.speed.toFixed(1)} km/h</span><span className="lbl">{s.label}</span><span className="dur">{fmt(s.sec)}</span>
+              </li>
+            })}
+          </ol>
+          <p className="fixed">El pico llega al 14 % de inclinación. Si aparece dolor o inestabilidad, reduce la inclinación o detén el tramo.</p>
+          <button className="primary" onClick={beginPersonalProtocol}>Empezar mi protocolo</button>
+        </section>
+      </div>
+    )
+  }
 
   // ───────── plan del día ─────────
   const lastSame = level ? logs?.find((l) => l.kind === kindOf(level)) : null
   let t = 0
   return (
     <div className="screen">
-      <button className="link back" onClick={onBack}>← Sesión</button>
+      <button className="link back" onClick={() => setRoute('choose')}>← Opciones de cardio</button>
       <h2>Cardio en cinta</h2>
       <button className="link" onClick={() => setOther(true)}>¿Cinta ocupada? Registrar otra máquina (bicicleta, elíptica…)</button>
 

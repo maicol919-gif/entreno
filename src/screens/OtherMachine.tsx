@@ -1,6 +1,5 @@
 import { useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { toISODate } from '../lib/plan'
 import { EFFORT_LEVELS, SEVERITY_LABEL, SPEECH_PHRASE, type Severity } from '../lib/treadmill'
 
 type Speech = 'entera' | 'dos' | 'mitad'
@@ -10,12 +9,13 @@ const MINUTE_OPTIONS = [10, 15, 20, 25, 30]
 
 interface Props {
   sessionId: string
+  sessionDate: string
   onBack: () => void
   onSaved: () => void
 }
 
 /** Cardio en una máquina que no es la cinta: se registra por minutos y esfuerzo, sin velocidades. */
-export default function OtherMachine({ sessionId, onBack, onSaved }: Props) {
+export default function OtherMachine({ sessionId, sessionDate, onBack, onSaved }: Props) {
   const [machine, setMachine] = useState<string | null>(null)
   const [minutes, setMinutes] = useState<number>(20)
   const [speech, setSpeech] = useState<Speech | null>(null)
@@ -38,7 +38,7 @@ export default function OtherMachine({ sessionId, onBack, onSaved }: Props) {
     setErr(null)
     const { error } = await supabase.from('cardio_logs').insert({
       session_id: sessionId,
-      date: toISODate(new Date()),
+      date: sessionDate,
       kind: 'otra',
       machine,
       minutes,

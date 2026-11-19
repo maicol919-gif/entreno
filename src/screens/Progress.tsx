@@ -218,6 +218,7 @@ function CardioWeek() {
   const [hard, setHard] = useState(0)
   const [med, setMed] = useState(0)
   const [soft, setSoft] = useState(0)
+  const [alternative, setAlternative] = useState(0)
   const [lastSpeech, setLastSpeech] = useState<string | null>(null)
   useEffect(() => {
     void supabase
@@ -229,14 +230,17 @@ function CardioWeek() {
         let h = 0
         let m = 0
         let sMin = 0
+        let altMin = 0
         for (const r of data ?? []) {
           if (r.kind === 'intervalos') h += 1
           else if (r.kind === 'media') m += 1
-          else sMin += Number(r.minutes)
+          else if (r.kind === 'recuperacion') sMin += Number(r.minutes)
+          else altMin += Number(r.minutes)
         }
         setHard(h)
         setMed(m)
         setSoft(sMin)
+        setAlternative(altMin)
         setLastSpeech((data ?? []).find((r) => r.speech_test)?.speech_test ?? null)
       })
   }, [])
@@ -247,6 +251,7 @@ function CardioWeek() {
       <p>Dura: <strong className={hard >= 1 && hard <= 3 ? 'ok' : ''}>{hard}</strong> <span className="muted">(máx. 3, nunca días seguidos)</span></p>
       <p>Media: <strong>{med}</strong></p>
       <p>Suave: <strong>{Math.round(soft)} min</strong></p>
+      {alternative > 0 && <p>Alternativo / personalizado: <strong>{Math.round(alternative)} min</strong></p>}
       <p className="muted">Último test de habla: {label}</p>
     </section>
   )

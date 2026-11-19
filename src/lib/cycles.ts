@@ -14,7 +14,7 @@ export interface CycleSession {
 
 export interface Cycle {
   sessionIds: string[]
-  /** número de día -> fecha en la que se hizo por primera vez en este ciclo */
+  /** número de día -> fecha de la última sesión de ese día dentro del ciclo */
   days: Record<number, string>
   /** fecha en que se completó (null si sigue en curso) */
   endedOn: string | null
@@ -37,7 +37,9 @@ export function computeCycles(sessions: CycleSession[], total = DAYS_PER_CYCLE):
   let completed = 0
   for (const s of sorted) {
     cur.sessionIds.push(s.id)
-    if (!(s.dayNumber in cur.days)) cur.days[s.dayNumber] = s.date
+    // Un día repetido no suma otra vez al ciclo, pero la interfaz muestra cuándo
+    // se repitió más recientemente, no la fecha de la primera sesión.
+    cur.days[s.dayNumber] = s.date
     if (Object.keys(cur.days).length >= total) {
       cur.endedOn = s.date
       last = cur

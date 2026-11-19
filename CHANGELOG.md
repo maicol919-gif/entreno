@@ -3,6 +3,12 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.19 · 2026-11-19
+- El cardio ofrece tres rutas: plan guiado, caminata inclinada personal de 30 min y otra máquina/actividad.
+- La caminata personal guía los siete tramos compartidos, registra su protocolo en el historial y no altera la progresión automática de la cinta.
+- El cardio queda asociado a la fecha de la sesión. El resumen del ciclo muestra la fecha más reciente de cada día repetido sin contar ese día dos veces.
+- La sesión del 18/11 queda completa con la primera serie de Press de hombros máquina y el cardio personalizado registrado.
+
 ## 3.18 · 2026-11-19
 - Rediseño visual completo: nueva portada de entrenamiento, progreso del ciclo animado, métricas rápidas, navegación con iconos y una identidad gráfica más marcada.
 - Mejoras de interacción y respuesta táctil, además de acceso renovado y soporte para movimiento reducido.

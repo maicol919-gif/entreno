@@ -145,7 +145,7 @@ export default function Today() {
     const setsByDay: Record<number, number> = {}
     for (const r of doneRows ?? []) {
       const n = days.find((d) => d.id === r.day_id)?.weekday
-      if (n && base.current.sessionIds.includes(r.id as string)) setsByDay[n] = (setsByDay[n] ?? 0) + ((r.sets as unknown[] | null)?.length ?? 0)
+      if (n && base.current.sessionIds.includes(r.id as string)) setsByDay[n] = (r.sets as unknown[] | null)?.length ?? 0
     }
     setCycleSets(setsByDay)
     if (cur && cur.status === 'done' && incl.completed > base.completed && incl.last) {
@@ -409,7 +409,7 @@ export default function Today() {
   }
 
   if (openCardio && session && cardio) {
-    return <Cardio plan={cardio} sessionId={session.id} legCtx={legCtx} week={week} extraMin={budget != null ? timePlan.extraCardioMin : 0} onBack={() => setOpenCardio(false)} />
+    return <Cardio plan={cardio} sessionId={session.id} sessionDate={session.date} legCtx={legCtx} week={week} extraMin={budget != null ? timePlan.extraCardioMin : 0} onBack={() => setOpenCardio(false)} />
   }
 
   if (loading) return <div className="screen"><p>Cargando…</p></div>

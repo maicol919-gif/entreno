@@ -1,4 +1,4 @@
-import type { IntervalConfig, Level, LegsFeel, MatchSoon, Phase } from './treadmill'
+import type { IntervalConfig, Level, LegsFeel, MatchSoon, Phase, Segment } from './treadmill'
 
 const KEY = 'entreno.cardio.run'
 /** Un cardio en curso se considera abandonado pasadas 12 h. */
@@ -6,6 +6,10 @@ const MAX_AGE_MS = 12 * 3600 * 1000
 
 export interface Run {
   start: number
+  mode?: 'guided' | 'custom'
+  protocolTitle?: string
+  customSegments?: Segment[]
+  sessionDate?: string
   level: Level
   phase: Phase
   cfg: IntervalConfig

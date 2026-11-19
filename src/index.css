@@ -376,3 +376,35 @@ label { color: #a4b1ad; }
   .start-dock p { margin: 0 0 4px; color: var(--muted); font-size: .82rem; text-align: center; }
   .start-dock button.primary { margin-top: 0; min-height: 48px; }
 }
+
+/* Rutas rápidas para registrar el cardio que realmente se hizo. */
+.cardio-route-list { display: grid; gap: 9px; padding: 10px; }
+.cardio-route {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 20px;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  color: var(--text);
+  text-align: left;
+  background: rgba(255,255,255,.025);
+  transition: transform .18s, border-color .18s, background .18s;
+}
+.cardio-route:hover { transform: translateY(-1px); border-color: var(--accent); background: rgba(255,255,255,.055); }
+.cardio-route > span:nth-child(2) { display: grid; gap: 4px; }
+.cardio-route strong { font-size: .97rem; }
+.cardio-route small { color: var(--muted); font-size: .8rem; line-height: 1.4; }
+.cardio-route > b { color: var(--accent); font-size: 1.35rem; }
+.route-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 13px; font-weight: 850; background: rgba(255,255,255,.07); }
+.route-icon.recommended { color: #ff8b68; background: rgba(255,112,77,.12); }
+.route-icon.personal { color: #d5ff48; background: rgba(213,255,72,.1); font-size: .82rem; }
+.route-icon.machine { color: #8ec7ff; background: rgba(94,174,255,.12); font-size: 1.4rem; }
+.cardio-separation { max-width: 620px; font-size: .82rem; }
+@media (max-width: 600px) {
+  .cardio-route-list { padding: 8px; }
+  .cardio-route { grid-template-columns: 38px minmax(0, 1fr) 16px; gap: 9px; padding: 11px 9px; }
+  .route-icon { width: 36px; height: 36px; border-radius: 11px; }
+}
