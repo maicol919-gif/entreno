@@ -378,6 +378,7 @@ label { color: #a4b1ad; }
 }
 
 /* Rutas rápidas para registrar el cardio que realmente se hizo. */
+.time-budget-hint { margin-top: -8px; font-size: .8rem; }
 .cardio-route-list { display: grid; gap: 9px; padding: 10px; }
 .cardio-route {
   display: grid;

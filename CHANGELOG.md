@@ -3,6 +3,10 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.20 · 2026-11-19
+- Los tiempos disponibles se presentan explícitamente como límites máximos, con el margen libre cuando el plan termina antes.
+- En días con cardio opcional, la estimación sin límite separa el tiempo de pesas del cardio opcional, en lugar de afirmar que ya está incluido.
+
 ## 3.19 · 2026-11-19
 - El cardio ofrece tres rutas: plan guiado, caminata inclinada personal de 30 min y otra máquina/actividad.
 - La caminata personal guía los siete tramos compartidos, registra su protocolo en el historial y no altera la progresión automática de la cinta.

@@ -540,6 +540,7 @@ export default function Today() {
           {!session && (
             <>
               <p className="muted">¿Cuánto tiempo tienes hoy? (incluye el cardio)</p>
+              <p className="muted time-budget-hint">Elige tu límite máximo, no una meta que haya que llenar. Si el plan seguro termina antes, ese margen queda libre.</p>
               <div className="timechips">
                 {TIME_OPTIONS.map((m) => (
                   <button key={m} className={`levelchip ${budget === m ? 'on' : ''}`} onClick={() => setBudget(m)}>
@@ -552,8 +553,12 @@ export default function Today() {
               </div>
               <p className="muted">
                 {budget == null
-                  ? `Rutina completa: ${totalSets} series · ≈${timePlan.totalMin} min con cardio.`
-                  : `Para ${budget} min: ${totalSets} series en ${activeItems.length} ejercicios${timePlan.trimmed ? ' (recortado)' : ''} · cardio ${timePlan.cardioMin} min · ≈${timePlan.totalMin} min.`}
+                  ? !cardio
+                    ? `Rutina completa: ${totalSets} series en ${activeItems.length} ejercicios · pesas ≈${timePlan.strengthMin} min.`
+                    : cardio.optional
+                      ? `Rutina completa: ${totalSets} series en ${activeItems.length} ejercicios · pesas ≈${timePlan.strengthMin} min · cardio suave opcional, aparte.`
+                      : `Rutina completa: ${totalSets} series en ${activeItems.length} ejercicios · ≈${timePlan.totalMin} min con cardio.`
+                  : `Límite ${budget} min: ${totalSets} series en ${activeItems.length} ejercicios${timePlan.trimmed ? ' (recortado)' : ''}${cardio ? ` · cardio ${cardio.optional ? 'recomendado' : 'programado'} ${timePlan.cardioMin} min` : ''} · sesión ≈${timePlan.totalMin} min${!timePlan.trimmed && timePlan.totalMin < budget ? ` · ${budget - timePlan.totalMin} min de margen` : ''}.`}
               </p>
               {skippedItems.length > 0 && (
                 <p className="muted">
