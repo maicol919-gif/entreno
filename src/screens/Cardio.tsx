@@ -79,6 +79,18 @@ const PERSONAL_PROTOCOL: Segment[] = [
   { label: 'Bajada', sec: 4 * 60, speed: 4.5, incline: 5, kind: 'rec' },
   { label: 'Enfriamiento', sec: 3 * 60, speed: 3.5, incline: 0, kind: 'cool' },
 ]
+const PERSONAL_DURATION_OPTIONS = [30, 35, 40, 45]
+
+function personalProtocolFor(minutes: number): Segment[] {
+  const extraMin = Math.max(0, minutes - 30)
+  if (!extraMin) return PERSONAL_PROTOCOL
+  const cooldown = PERSONAL_PROTOCOL[PERSONAL_PROTOCOL.length - 1]
+  return [
+    ...PERSONAL_PROTOCOL.slice(0, -1),
+    { label: 'Caminata continua extra', sec: extraMin * 60, speed: 4.5, incline: 5, kind: 'rec' },
+    cooldown,
+  ]
+}
 
 function MatchChips({ value, onChange }: { value: MatchSoon; onChange: (m: MatchSoon) => void }) {
   return (
@@ -109,6 +121,7 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
   const [logs, setLogs] = useState<LogRow[] | null>(null)
   const [other, setOther] = useState(false)
   const [route, setRoute] = useState<'choose' | 'guided' | 'custom'>(() => saved.current?.mode === 'custom' ? 'custom' : 'choose')
+  const [personalMinutes, setPersonalMinutes] = useState(30)
   const [useExtra, setUseExtra] = useState(true)
   /** minutos de cardio que tienes hoy (null = el cardio completo de tu nivel) */
   const [minutesAvail, setMinutesAvail] = useState<number | null>(saved.current?.minutes ?? null)
@@ -272,8 +285,8 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
     clearRest()
     lastIndex.current = -1
     const r: Run = {
-      start: Date.now(), mode: 'custom', protocolTitle: 'Caminata inclinada',
-      customSegments: PERSONAL_PROTOCOL, sessionDate, level: 'suave', phase: 0, cfg, reduced: false,
+      start: Date.now(), mode: 'custom', protocolTitle: `Caminata inclinada · ${personalMinutes} min`,
+      customSegments: personalProtocolFor(personalMinutes), sessionDate, level: 'suave', phase: 0, cfg, reduced: false,
       sessionId, feel: null, match: 'no',
     }
     setNow(r.start)
@@ -296,6 +309,7 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
   const workedSec = run ? Math.min(total, Math.floor(((stoppedAt ?? now) - run.start) / 1000)) : 0
   const completed = run != null && (finished || workedSec >= total)
   const needsSpeech = run != null && completed && run.level !== 'suave'
+  const asksSpeech = run != null && completed && (run.mode === 'custom' || run.level !== 'suave')
 
   async function save() {
     if (!run || savingRef.current || done) return
@@ -329,7 +343,7 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
       machine: 'Trotadora',
       minutes: Math.max(1, Math.round((workedSec / 60) * 10) / 10),
       rpe: effort,
-      speech_test: needsSpeech ? speech : null,
+      speech_test: asksSpeech ? speech : null,
       discomfort,
       discomfort_severity: discomfort ? severity : null,
       protocol,
@@ -426,11 +440,13 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
         <h2>{completed ? 'Cardio completo' : 'Cardio parcial'} · {run.mode === 'custom' ? run.protocolTitle : LEVEL_LABEL[run.level]}</h2>
         <p className="muted">Tiempo: {fmt(workedSec)}</p>
 
-        {needsSpeech && (
+        {asksSpeech && (
           <section className="card">
-            <h3>Test de habla</h3>
+            <h3>{run.mode === 'custom' ? '¿Cómo estuvo tu respiración?' : 'Test de habla'}</h3>
             <p className="muted">
-              {run.level === 'dura' ? 'Al final de la última recuperación' : 'En el último minuto del último bloque'}, di de corrido: <em>“{SPEECH_PHRASE}”</em>
+              {run.mode === 'custom'
+                ? <>Si quieres registrarlo, al acabar el tramo más exigente di: <em>“{SPEECH_PHRASE}”</em>. Es opcional y no cambia la progresión de la cinta.</>
+                : <>{run.level === 'dura' ? 'Al final de la última recuperación' : 'En el último minuto del último bloque'}, di de corrido: <em>“{SPEECH_PHRASE}”</em></>}
             </p>
             {(
               [
@@ -487,16 +503,16 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
       <button className="link back" onClick={onBack}>← Sesión</button>
       <span className="eyebrow">CIERRE DE LA SESIÓN</span>
       <h2>¿Cómo quieres hacer cardio hoy?</h2>
-      <p className="muted">Elige la opción que mejor encaja con tus piernas, tu motivación y el tiempo real que tienes.</p>
+      <p className="muted">Hay días para trabajar la resistencia y días para elegir una caminata que te motive. ¿Qué buscas hoy?</p>
       <section className="card cardio-route-list">
         <button className="cardio-route" onClick={() => setRoute('guided')}>
           <span className="route-icon recommended">↗</span>
-          <span><strong>Seguir el plan de Entreno</strong><small>Elige cómo están las piernas y recibe el protocolo guiado de hoy.</small></span>
+          <span><strong>Mejorar resistencia respiratoria</strong><small>Plan guiado según tus piernas, recuperación y progreso, con test de habla.</small></span>
           <b aria-hidden="true">›</b>
         </button>
         <button className="cardio-route" onClick={() => setRoute('custom')}>
           <span className="route-icon personal">30′</span>
-          <span><strong>Mi caminata inclinada</strong><small>Tu protocolo de 7 tramos · 30 min · sin correr.</small></span>
+          <span><strong>Caminata inclinada / trabajo continuo</strong><small>Tu protocolo de ayer, con duración ampliable de 30 a 45 min.</small></span>
           <b aria-hidden="true">›</b>
         </button>
         <button className="cardio-route" onClick={() => setOther(true)}>
@@ -505,7 +521,7 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
           <b aria-hidden="true">›</b>
         </button>
       </section>
-      <p className="muted cardio-separation">Los protocolos personalizados se guardan en tu historial, pero no suben ni bajan automáticamente el nivel recomendado de la cinta.</p>
+      <p className="muted cardio-separation">La caminata inclinada suma actividad y puede ayudarte a sostener el plan; no es una zona especial que garantice más pérdida de grasa. Se registra aparte y no cambia la progresión de resistencia.</p>
     </div>
   )
 
@@ -514,12 +530,21 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
     return (
       <div className="screen">
         <button className="link back" onClick={() => setRoute('choose')}>← Opciones de cardio</button>
-        <span className="eyebrow">TU PROTOCOLO · 30 MIN</span>
+        <span className="eyebrow">TU PROTOCOLO · {personalMinutes} MIN</span>
         <h2>Caminata inclinada</h2>
-        <p className="muted">7 tramos · caminando todo el tiempo · se guarda como alternativa personal.</p>
+        <p className="muted">Conserva los 7 tramos que compartiste. Elige cuánto tiempo tienes hoy; al ampliar, se añade caminata continua sin subir el pico de inclinación.</p>
         <section className="card">
+          <h3>Duración</h3>
+          <div className="timechips cardio-duration-options">
+            {PERSONAL_DURATION_OPTIONS.map((minutes) => (
+              <button key={minutes} className={`levelchip ${personalMinutes === minutes ? 'on' : ''}`} onClick={() => setPersonalMinutes(minutes)}>
+                <strong>{minutes} min</strong>
+              </button>
+            ))}
+          </div>
+          {personalMinutes > 30 && <p className="muted">Se añaden {personalMinutes - 30} min a 4,5 km/h e inclinación 5 %, antes de la bajada y el enfriamiento.</p>}
           <ol className="seglist">
-            {PERSONAL_PROTOCOL.map((s, i) => {
+            {personalProtocolFor(personalMinutes).map((s, i) => {
               const start = elapsedPlan
               elapsedPlan += s.sec
               return <li key={i} className={`next ${s.kind}`}>
@@ -529,7 +554,7 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
             })}
           </ol>
           <p className="fixed">El pico llega al 14 % de inclinación. Si aparece dolor o inestabilidad, reduce la inclinación o detén el tramo.</p>
-          <button className="primary" onClick={beginPersonalProtocol}>Empezar mi protocolo</button>
+          <button className="primary" onClick={beginPersonalProtocol}>Empezar caminata · {personalMinutes} min</button>
         </section>
       </div>
     )

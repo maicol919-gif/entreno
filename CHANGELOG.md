@@ -3,6 +3,11 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.21 · 2026-11-19
+- El cardio empieza preguntando por la intención: resistencia respiratoria guiada o caminata inclinada/trabajo continuo.
+- La caminata inclinada conserva los 30 min del protocolo compartido y permite ampliarlo hasta 45 min con tramos continuos de menor inclinación.
+- En la revisión de caminatas personalizadas, el test de habla queda disponible como registro opcional y no modifica la progresión de la cinta.
+
 ## 3.20 · 2026-11-19
 - Los tiempos disponibles se presentan explícitamente como límites máximos, con el margen libre cuando el plan termina antes.
 - En días con cardio opcional, la estimación sin límite separa el tiempo de pesas del cardio opcional, en lugar de afirmar que ya está incluido.
