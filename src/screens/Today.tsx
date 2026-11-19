@@ -418,15 +418,17 @@ export default function Today() {
 
   return (
     <div className="screen">
-      <section className={`today-hero ${session ? 'is-live' : ''}`}>
+      <section className={`today-hero ${session?.status === 'in_progress' ? 'is-live' : ''}`}>
         <div className="hero-copy">
           <span className="eyebrow"><i /> {dateLabel}</span>
-          <h1>{session?.status === 'in_progress' ? 'Sesión en marcha' : day ? day.name : 'Día de recuperación'}</h1>
+          <h1>{session?.status === 'in_progress' ? 'Sesión en marcha' : session?.status === 'done' ? '¡Entrenamiento completado!' : day ? day.name : 'Día de recuperación'}</h1>
           <p>{session?.status === 'in_progress'
             ? `${doneTotal} series guardadas · seguimos donde lo dejaste`
-            : day ? `Día ${day.weekday} · Ciclo ${week} · Bloque ${block}` : 'Recupera, recarga y vuelve más fuerte.'}</p>
-          {day && <button className="hero-link" onClick={() => document.getElementById('training-plan')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
-            {session ? 'Continuar sesión' : 'Preparar entrenamiento'} <span aria-hidden="true">↘</span>
+            : session?.status === 'done'
+              ? `${doneTotal} series registradas${cardioMin > 0 ? ` · ${Math.round(cardioMin)} min de cardio` : ''} · día guardado`
+              : day ? `Día ${day.weekday} · Ciclo ${week} · Bloque ${block}` : 'Recupera, recarga y vuelve más fuerte.'}</p>
+          {day && <button className="hero-link" onClick={() => document.getElementById(session?.status === 'done' ? 'completed-session' : 'training-plan')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
+            {session?.status === 'done' ? 'Ver resumen del día' : session ? 'Continuar sesión' : 'Preparar entrenamiento'} <span aria-hidden="true">↘</span>
           </button>}
         </div>
         <div className="cycle-orbit" aria-label={`${cycleDoneCount} de 5 días completados`}>
@@ -473,11 +475,16 @@ export default function Today() {
         </section>
       )}
 
-      {session?.status === 'done' && !showSummary && (
-        <section className="card last">
-          <h3>Sesión completada</h3>
-          <p>{doneTotal} series{cardioMin > 0 ? ` · ${Math.round(cardioMin)} min de cardio` : ''}.</p>
-          <button className="link" onClick={reopen}>Reabrir sesión</button>
+      {session?.status === 'done' && (
+        <section className="card workout-complete" id="completed-session" role="status" aria-live="polite">
+          <div className="workout-complete-mark" aria-hidden="true">✓</div>
+          <div className="workout-complete-copy">
+            <span className="eyebrow">ENTRENO DE HOY</span>
+            <h3>¡Día completado!</h3>
+            <p className="workout-complete-stats">{day?.name ?? 'Sesión de hoy'} · {doneTotal} series{cardioMin > 0 ? ` · ${Math.round(cardioMin)} min de cardio` : ''}</p>
+            <p className="muted">Tu entrenamiento está guardado. Reabre la sesión solo si quieres revisar o editar los ejercicios.</p>
+            <button className="primary" onClick={reopen}>Reabrir entrenamiento</button>
+          </div>
         </section>
       )}
 
@@ -534,7 +541,7 @@ export default function Today() {
 
       {!day && <section className="card"><h3>Día de descanso</h3><p>Camina 30–45 min, duerme bien y come tu proteína.</p></section>}
 
-      {day && (
+      {day && session?.status !== 'done' && (
         <section className="card plan-card" id="training-plan">
           <div className="section-heading"><div><span className="eyebrow">PLAN DE HOY</span><h3>{day.name}</h3></div><span className="plan-spark" aria-hidden="true">✳</span></div>
           {!session && (
@@ -581,7 +588,7 @@ export default function Today() {
         </section>
       )}
 
-      {day && session && (
+      {day && session?.status === 'in_progress' && (
         <>
           {activeItems.map((item) => {
             const ex = exById.get(item.exercise_id)
