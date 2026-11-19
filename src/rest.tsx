@@ -39,6 +39,7 @@ function writeEnd(v: number | null) {
 
 export function beep() {
   try {
+    if (localStorage.getItem('entreno.sound.enabled') === 'false') return
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
     const ctx = new AC()
     for (let i = 0; i < 3; i++) {

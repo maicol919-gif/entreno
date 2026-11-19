@@ -480,8 +480,11 @@ export default function Cardio({ plan, sessionId, legCtx, week, extraMin = 0, on
             Piernas {feel}. <button className="link" onClick={() => { setFeel(null); setLevelChoice(null) }}>Cambiar</button>
           </p>
 
-          <MatchChips value={match} onChange={setMatch} />
-          {match !== 'no' && <p className="muted">{MATCH_LABEL[match]}: hoy el tope es nivel {LEVEL_LABEL[matchCap(match)].toUpperCase()}.</p>}
+          <section className="card">
+            <h3>Contexto de hoy</h3>
+            <p className="muted">Piernas {feel.toLowerCase()}. Partido: {MATCH_LABEL[match]}. Tope permitido: {LEVEL_LABEL[capEff].toUpperCase()}.</p>
+            <button className="link" onClick={() => { setFeel(null); setLevelChoice(null) }}>Revisar contexto</button>
+          </section>
           {hold.active && (
             <div className="fixed">
               <p>
@@ -522,7 +525,7 @@ export default function Cardio({ plan, sessionId, legCtx, week, extraMin = 0, on
 
           <div className="levels">
             {(['dura', 'media', 'suave'] as Level[]).map((l) => (
-              <button key={l} className={`levelchip ${level === l ? 'on' : ''}`} onClick={() => setLevelChoice(l)}>
+              <button key={l} disabled={(l === 'dura' && capEff !== 'dura') || (l === 'media' && capEff === 'suave')} className={`levelchip ${level === l ? 'on' : ''}`} onClick={() => setLevelChoice(l)}>
                 <strong>{LEVEL_LABEL[l]}</strong>
                 <span>{levelMinutes(l, phaseEff)} min</span>
                 {recommended === l && <small>recomendado</small>}

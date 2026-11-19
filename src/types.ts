@@ -9,6 +9,7 @@ export interface Exercise {
   load_type: LoadType
   bar_kg: number
   min_increment_kg: number
+  rest_seconds: number | null
   rep_min: number
   rep_max: number
   fixed_note: string | null
@@ -42,7 +43,7 @@ export interface Session {
   day_id: string | null
   note: string | null
   soreness: number | null
-  status: 'in_progress' | 'done'
+  status: 'in_progress' | 'done' | 'incomplete'
   source: string
 }
 
@@ -70,4 +71,5 @@ export interface PastSession {
   date: string
   sets: PastSet[]
   note: string
+  note_type?: string
 }

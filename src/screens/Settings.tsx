@@ -2,16 +2,27 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useData } from '../store'
 
+const SOUND_KEY = 'entreno.sound.enabled'
+
 export default function SettingsTab() {
-  const { settings, exercises, reload } = useData()
+  const { settings, reload } = useData()
   const [offset, setOffset] = useState(String(settings.week_offset ?? 0))
-  const [rest, setRest] = useState(String(settings.rest_seconds))
+  const [sound, setSound] = useState(() => localStorage.getItem(SOUND_KEY) !== 'false')
   const [msg, setMsg] = useState<string | null>(null)
 
-  async function saveSettings() {
-    const { error } = await supabase.from('settings').upsert({ mesocycle_start: settings.mesocycle_start, rest_seconds: Number(rest) || 120, week_offset: Math.round(Number(offset)) || 0 })
-    setMsg(error ? error.message : 'Guardado.')
+  async function saveCycle() {
+    const next = Math.round(Number(offset) || 0)
+    const confirmed = window.confirm(`Vista previa del cambio\n\nAjuste actual: ${settings.week_offset ?? 0}\nNuevo ajuste: ${next}\n\n¿Guardar la corrección del ciclo?`)
+    if (!confirmed) return
+    const { error } = await supabase.from('settings').upsert({ mesocycle_start: settings.mesocycle_start, rest_seconds: settings.rest_seconds, week_offset: next })
+    setMsg(error ? `No se pudo guardar: ${error.message}` : 'Corrección del ciclo guardada.')
     await reload()
+  }
+
+  function toggleSound(value: boolean) {
+    setSound(value)
+    localStorage.setItem(SOUND_KEY, String(value))
+    setMsg(value ? 'Avisos sonoros activados en este dispositivo.' : 'Avisos sonoros desactivados en este dispositivo.')
   }
 
   async function exportAll() {
@@ -23,11 +34,7 @@ export default function SettingsTab() {
     a.href = URL.createObjectURL(blob)
     a.download = `entreno-respaldo-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
-  }
-
-  async function setBar(id: string, v: number) {
-    await supabase.from('exercises').update({ bar_kg: v }).eq('id', id)
-    await reload()
+    URL.revokeObjectURL(a.href)
   }
 
   async function forceUpdate() {
@@ -35,49 +42,30 @@ export default function SettingsTab() {
       const regs = await navigator.serviceWorker.getRegistrations()
       await Promise.all(regs.map((r) => r.unregister()))
       for (const k of await caches.keys()) await caches.delete(k)
-    } catch {
-      /* sin service worker: basta con recargar */
-    }
+    } catch { /* sin service worker: basta con recargar */ }
     location.reload()
   }
-
-  const barEx = exercises.filter((e) => e.load_type === 'plates_per_side_plus_bar')
 
   return (
     <div className="screen">
       <h2>Ajustes</h2>
-      {msg && <p className="ok">{msg}</p>}
-
+      {msg && <p className={msg.startsWith('No se pudo') ? 'err' : 'ok'} role="status">{msg}</p>}
       <section className="card">
         <h3>Ciclo de entrenamiento</h3>
-        <p className="muted">La semana del ciclo avanza sola cada vez que haces el Día 5 (no depende del calendario).</p>
+        <p className="muted">La semana avanza al completar el Día 5. La corrección solo cambia el cálculo de la semana y no modifica sesiones ni cargas.</p>
         <label>Ajuste de semana (0 = automático; +1 adelanta, −1 retrasa)<input inputMode="numeric" value={offset} onChange={(e) => setOffset(e.target.value)} /></label>
-        <label>Descanso entre series (segundos)<input inputMode="numeric" value={rest} onChange={(e) => setRest(e.target.value)} /></label>
-        <button onClick={saveSettings}>Guardar</button>
+        <p className="fixed">Vista previa: ajuste {settings.week_offset ?? 0} → {Math.round(Number(offset) || 0)}.</p>
+        <button className="primary" onClick={saveCycle}>Revisar y guardar</button>
       </section>
-
       <section className="card">
-        <h3>Peso de la barra</h3>
-        <p className="muted">Para ejercicios donde anotas discos por lado (Smith, barra). Sirve para comparar cargas totales.</p>
-        {barEx.map((e) => (
-          <label key={e.id}>{e.name}
-            <input inputMode="decimal" defaultValue={e.bar_kg} onBlur={(ev) => setBar(e.id, Number(ev.target.value.replace(',', '.')) || 0)} />
-          </label>
-        ))}
+        <h3>Avisos sonoros</h3>
+        <label className="check-row"><input type="checkbox" checked={sound} onChange={(e) => toggleSound(e.target.checked)} /><span>Sonido al cambiar tramo de cardio y al terminar el descanso</span></label>
       </section>
-
+      <section className="card"><h3>Datos</h3><button onClick={exportAll}>Descargar respaldo</button></section>
       <section className="card">
-        <h3>Datos</h3>
-        <button onClick={exportAll}>Descargar respaldo</button>
-      </section>
-
-      <section className="card">
-        <h3>Versión de la app</h3>
-        <p>Versión <strong>{__VERSION__}</strong></p>
-        <p className="muted">Compilada: {__BUILD__}</p>
+        <h3>Versión de la app</h3><p>Versión <strong>{__VERSION__}</strong></p><p className="muted">Compilada: {__BUILD__}</p>
         <button onClick={forceUpdate}>Buscar actualización</button>
       </section>
-
       <button className="link" onClick={() => supabase.auth.signOut()}>Cerrar sesión</button>
     </div>
   )

@@ -8,26 +8,32 @@ import HistoryTab from './screens/History'
 import Gym from './screens/Gym'
 import SettingsTab from './screens/Settings'
 import Progress from './screens/Progress'
-import { RestBar, RestProvider } from './rest'
+import { RestProvider } from './rest'
 import UpdateBanner from './UpdateBanner'
+import PasswordRecovery from './screens/PasswordRecovery'
 
-type Tab = 'today' | 'progress' | 'history' | 'gym' | 'settings'
+type Tab = 'today' | 'evolution' | 'gym' | 'settings'
+type EvolutionView = 'progress' | 'history'
 
 const TABS: [Tab, string][] = [
   ['today', 'Hoy'],
-  ['progress', 'Progreso'],
-  ['history', 'Historial'],
+  ['evolution', 'Evolución'],
   ['gym', 'Gimnasio'],
   ['settings', 'Ajustes'],
 ]
 
 export default function App() {
   const [auth, setAuth] = useState<AuthSession | null | undefined>(undefined)
+  const [recovering, setRecovering] = useState(false)
   const [tab, setTab] = useState<Tab>('today')
+  const [evolutionView, setEvolutionView] = useState<EvolutionView>('progress')
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => setAuth(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setAuth(s))
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'PASSWORD_RECOVERY') setRecovering(true)
+      setAuth(s)
+    })
     return () => data.subscription.unsubscribe()
   }, [])
 
@@ -38,6 +44,7 @@ export default function App() {
       <UpdateBanner />
     </>
   )
+  if (recovering) return <PasswordRecovery onDone={() => setRecovering(false)} />
 
   return (
     <DataProvider>
@@ -45,12 +52,16 @@ export default function App() {
       <UpdateBanner />
       <main>
         {tab === 'today' && <Today />}
-        {tab === 'progress' && <Progress />}
-        {tab === 'history' && <HistoryTab />}
+        {tab === 'evolution' && <>
+          <div className="subtabs" aria-label="Vistas de evolución">
+            <button className={evolutionView === 'progress' ? 'active' : ''} onClick={() => setEvolutionView('progress')}>Progreso</button>
+            <button className={evolutionView === 'history' ? 'active' : ''} onClick={() => setEvolutionView('history')}>Historial</button>
+          </div>
+          {evolutionView === 'progress' ? <Progress /> : <HistoryTab />}
+        </>}
         {tab === 'gym' && <Gym />}
         {tab === 'settings' && <SettingsTab />}
       </main>
-      <RestBar />
       <nav className="tabs">
         {TABS.map(([k, label]) => (
           <button key={k} className={tab === k ? 'active' : ''} onClick={() => setTab(k)}>

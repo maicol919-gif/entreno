@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useRest } from '../rest'
+import { RestBar, useRest } from '../rest'
 import { supabase } from '../lib/supabase'
 import { fmtDate, fmtSets, loadPast } from '../lib/history'
 import { suggest, type Suggestion } from '../lib/progression'
@@ -65,6 +65,10 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
   const [past, setPast] = useState<PastSession[]>([])
   const [sugg, setSugg] = useState<Suggestion | null>(null)
   const [note, setNote] = useState('')
+  const [noteType, setNoteType] = useState('otra')
+  const [noteTypeAvailable, setNoteTypeAvailable] = useState<boolean | null>(null)
+  const [restDuration, setRestDuration] = useState(String(exercise.rest_seconds ?? ''))
+  const [restError, setRestError] = useState<string | null>(null)
   const { start: startTimer } = useRest()
   const [needRir, setNeedRir] = useState<string | null>(null)
   const setsRef = useRef<SetRow[] | null>(null)
@@ -79,11 +83,22 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
   const [ref, setRef] = useState<{ name: string; last: PastSession } | null>(null)
   const videoId = VIDEOS[exercise.name]
   const guide = GUIDES[exercise.name]
+  const hasExerciseRest = Object.prototype.hasOwnProperty.call(exercise, 'rest_seconds')
   useEffect(() => {
     setsRef.current = sets
   }, [sets])
 
-  const startRest = () => startTimer(restSeconds)
+  const startRest = () => startTimer(Number(restDuration) > 0 ? Number(restDuration) : restSeconds)
+
+  async function saveRestDuration(value: string) {
+    const seconds = value.trim() ? Math.round(Number(value)) : null
+    if (seconds != null && (!Number.isFinite(seconds) || seconds < 15 || seconds > 900)) {
+      setRestError('Usa entre 15 y 900 segundos, o deja el campo vacío para conservar el descanso legado.')
+      return
+    }
+    const { error } = await supabase.from('exercises').update({ rest_seconds: seconds }).eq('id', exercise.id)
+    setRestError(error ? `No se guardó: ${error.message}` : null)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -99,7 +114,14 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
         increment: exercise.min_increment_kg,
       })
       const cur = await supabase.from('sets').select('*').eq('session_id', sessionId).eq('exercise_id', exercise.id).order('set_number')
-      const nt = await supabase.from('session_exercise_notes').select('note,uncomfortable,discomfort_reason,rating').eq('session_id', sessionId).eq('exercise_id', exercise.id).maybeSingle()
+      const nt = await supabase.from('session_exercise_notes').select('note,note_type,uncomfortable,discomfort_reason,rating').eq('session_id', sessionId).eq('exercise_id', exercise.id).maybeSingle()
+      let noteData = nt.data as { note?: string | null; note_type?: string | null; rating?: number | null } | null
+      let canClassifyNotes = !nt.error
+      if (nt.error?.code === '42703') {
+        const legacy = await supabase.from('session_exercise_notes').select('note,uncomfortable,discomfort_reason,rating').eq('session_id', sessionId).eq('exercise_id', exercise.id).maybeSingle()
+        noteData = legacy.data
+        canClassifyNotes = false
+      }
       let rows = (cur.data ?? []) as SetRow[]
       if (rows.length === 0) {
         const key = `${sessionId}:${exercise.id}`
@@ -121,8 +143,10 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
       setPast(p)
       setSugg(s)
       setSets(rows)
-      setNote(nt.data?.note ?? '')
-      setRating((nt.data?.rating as number | null) ?? null)
+      setNote(noteData?.note ?? '')
+      setNoteType(noteData?.note_type ?? 'otra')
+      setNoteTypeAvailable(canClassifyNotes)
+      setRating(noteData?.rating ?? null)
     })()
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -175,7 +199,17 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
   }
 
   async function saveNote() {
-    await supabase.from('session_exercise_notes').upsert({ session_id: sessionId, exercise_id: exercise.id, note })
+    await saveExerciseNote()
+  }
+
+  async function saveExerciseNote(extra: Record<string, unknown> = {}) {
+    const base = { session_id: sessionId, exercise_id: exercise.id, note, ...extra }
+    const payload = noteTypeAvailable ? { ...base, note_type: noteType } : base
+    const { error } = await supabase.from('session_exercise_notes').upsert(payload as never)
+    if (error?.code === '42703' && noteTypeAvailable) {
+      setNoteTypeAvailable(false)
+      await supabase.from('session_exercise_notes').upsert(base as never)
+    }
   }
 
   // puntuación media de este ejercicio y, si es nuevo, referencia de un ejercicio parecido
@@ -202,7 +236,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
     setRating(n)
     // 1-2 estrellas = no te gustó: la próxima vez se proponen reemplazos
     const low = n != null && n <= 2
-    await supabase.from('session_exercise_notes').upsert({ session_id: sessionId, exercise_id: exercise.id, note, rating: n, uncomfortable: low, discomfort_reason: null })
+    await saveExerciseNote({ rating: n, uncomfortable: low, discomfort_reason: null })
   }
 
   async function sendVideoFeedback() {
@@ -223,6 +257,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
 
   return (
     <div className="screen">
+      <RestBar />
       <button className="link back" onClick={onBack}>← Sesión</button>
       <h2>{exercise.name}</h2>
       <p className="muted">
@@ -232,6 +267,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
       </p>
       {pending > 0 && <p className="err">Sin conexión: {pending} serie(s) pendientes de guardar. Se reintenta solo.</p>}
       {exercise.fixed_note && <p className="fixed">📌 {exercise.fixed_note}</p>}
+      {last?.note && <section className="card warn"><h3>Tu recordatorio</h3><p className="note">{last.note}</p>{last.note_type === 'tecnica' && <p className="muted"><strong>Cómo hacerlo para mí:</strong> recordatorio personal; consulta también la guía general de técnica.</p>}</section>}
 
       {flag && (
         <section className="card warn">
@@ -352,6 +388,10 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
 
       <section className="card">
         <h3>Registro <span className="muted">({LOAD_LABEL[exercise.load_type]})</span></h3>
+        {hasExerciseRest && <label>Descanso de este ejercicio (segundos, opcional)
+          <input type="number" min={15} max={900} placeholder={`Legado: ${restSeconds} s`} value={restDuration} onChange={(e) => setRestDuration(e.target.value)} onBlur={(e) => void saveRestDuration(e.target.value)} />
+        </label>}
+        {restError && <p className="err">{restError}</p>}
         <div className="set head"><span>#</span><span>Reps</span><span>Carga</span><span>RIR</span><span /></div>
         {(sets ?? []).map((r) => (
           <div className={`set ${r.done ? 'done' : ''}`} key={r.id}>
@@ -395,6 +435,10 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
 
       <section className="card">
         <h3>Nota de hoy</h3>
+        {noteTypeAvailable && <label>Tipo de nota<select value={noteType} onChange={(e) => setNoteType(e.target.value)} onBlur={saveNote}>
+          <option value="ajuste_equipo">Ajuste del equipo</option><option value="tecnica">Técnica</option><option value="preferencia">Preferencia</option><option value="molestia">Molestia</option><option value="otra">Otra</option>
+        </select></label>}
+        {noteTypeAvailable === false && <p className="muted">Las notas se guardan con el esquema actual; las categorías estarán disponibles al aplicar la migración de datos.</p>}
         <textarea rows={3} placeholder="Ej.: inclinación 3, molestia hombro, RIR por serie…" value={note} onChange={(e) => setNote(e.target.value)} onBlur={saveNote} />
       </section>
 

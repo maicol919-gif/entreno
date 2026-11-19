@@ -31,6 +31,7 @@ La alimentación, el peso y la cintura viven en la app hermana **Nutrición** (r
 ## Puesta en marcha
 
 1. Crea un proyecto en Supabase y ejecuta [`supabase/schema.sql`](supabase/schema.sql) en el SQL Editor.
+   Si la base ya existe, ejecuta también [`supabase/migrations/20261107_exercise_note_type.sql`](supabase/migrations/20261107_exercise_note_type.sql) antes de actualizar el front. Añade categorías de notas, descanso opcional por ejercicio y el estado `incomplete` sin borrar ni transformar registros existentes. El descanso legado se conserva como respaldo mientras cada ejercicio tenga el campo nuevo vacío.
 2. Crea `.env.local` con la URL y la clave pública (publishable/anon) de tu proyecto:
 
    ```

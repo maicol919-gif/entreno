@@ -10,7 +10,7 @@ interface Row {
   reps: number | null
   load_kg: number | null
   session_id: string
-  sessions: { date: string } | { date: string }[]
+  sessions: { date: string; status: string } | { date: string; status: string }[]
 }
 
 /** Rango semanal de series directas por músculo (evidencia: ~10-20 grandes, 6-12 pequeños). */
@@ -47,9 +47,11 @@ async function loadAllSets(): Promise<Row[]> {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from('sets')
-      .select('exercise_id,reps,load_kg,session_id,sessions!inner(date)')
+      .select('exercise_id,reps,load_kg,session_id,sessions!inner(date,status)')
       .eq('done', true)
       .eq('is_warmup', false)
+      .eq('sessions.status', 'done')
+      .neq('sessions.source', 'app_incomplete')
       .range(from, from + 999)
     if (error) throw error
     out.push(...(data as unknown as Row[]))

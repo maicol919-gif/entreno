@@ -3,6 +3,12 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.17 · 2026-11-19
+- Nueva interfaz reorganizada y mejor uso en móvil; las vistas de progreso e historial quedan juntas.
+- Se conserva el historial existente y se muestran los entrenamientos incompletos sin contarlos en el ciclo ni en la progresión.
+- Añadidos recuperación de acceso, notas personales por tipo y descanso opcional por ejercicio (las dos últimas opciones requieren la migración de Supabase incluida).
+- Simplificados los ajustes y el registro de cardio.
+
 ## 3.16 · 2026-10-27
 - **La app aprovecha todo el tiempo que marcas:** si el tiempo sobra, lo usa en este orden: 1) descanso de 3 min en los 3 ejercicios principales, 2) series de aproximación (guía, no se registran) en los primeros principales, 3) caminata suave extra tras el cardio (o cardio recomendado en días de piernas), 4) una serie extra en los principales (no en días de piernas, máx. 4). Nunca pasa del tiempo marcado. Si el tiempo no alcanza, recorta como antes.
 

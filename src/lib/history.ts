@@ -7,30 +7,35 @@ interface Row {
   reps: number | null
   load_kg: number | null
   rir: number | null
-  sessions: { date: string } | { date: string }[]
+  sessions: { date: string; status: string } | { date: string; status: string }[]
 }
 
 /** Sesiones anteriores (completadas) de un ejercicio, de la más reciente a la más antigua. */
 export async function loadPast(exerciseId: string, excludeSessionId?: string): Promise<PastSession[]> {
   let q = supabase
     .from('sets')
-    .select('session_id,set_number,reps,load_kg,rir,sessions!inner(date)')
+    .select('session_id,set_number,reps,load_kg,rir,sessions!inner(date,status)')
     .eq('exercise_id', exerciseId)
+    .eq('sessions.status', 'done')
+    .neq('sessions.source', 'app_incomplete')
     .eq('done', true)
     .eq('is_warmup', false)
   if (excludeSessionId) q = q.neq('session_id', excludeSessionId)
-  const [{ data, error }, notes] = await Promise.all([
-    q,
-    supabase.from('session_exercise_notes').select('session_id,note').eq('exercise_id', exerciseId),
-  ])
+  const [{ data, error }] = await Promise.all([q])
   if (error) throw error
-  const noteBy = new Map((notes.data ?? []).map((n) => [n.session_id as string, n.note as string]))
+  const typedNotes = await supabase.from('session_exercise_notes').select('session_id,note,note_type').eq('exercise_id', exerciseId)
+  const notesData = typedNotes.error?.code === '42703'
+    ? (await supabase.from('session_exercise_notes').select('session_id,note').eq('exercise_id', exerciseId)).data
+    : typedNotes.data
+  const noteBy = new Map<string, { note: string; note_type?: string }>()
+  for (const n of notesData ?? []) noteBy.set(String(n.session_id), { note: String(n.note ?? ''), note_type: 'note_type' in n ? (n.note_type as string | null) ?? undefined : undefined })
   const by = new Map<string, PastSession>()
   for (const r of data as unknown as Row[]) {
     const date = Array.isArray(r.sessions) ? r.sessions[0].date : r.sessions.date
     let s = by.get(r.session_id)
     if (!s) {
-      s = { session_id: r.session_id, date, sets: [], note: noteBy.get(r.session_id) ?? '' }
+      const previousNote = noteBy.get(r.session_id)
+      s = { session_id: r.session_id, date, sets: [], note: previousNote?.note ?? '', note_type: previousNote?.note_type }
       by.set(r.session_id, s)
     }
     s.sets.push({ reps: r.reps, load_kg: r.load_kg, rir: r.rir, set_number: r.set_number })

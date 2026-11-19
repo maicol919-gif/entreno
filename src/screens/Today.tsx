@@ -101,7 +101,8 @@ export default function Today() {
   const [flags, setFlags] = useState<Record<string, Flag>>({})
   // la pantalla no se apaga mientras la sesión de entreno está en curso
   // la sesión de hoy solo se muestra en su propio día: otro día se ve como un día nuevo (sin cardio ni series hechas)
-  const session = rawSession && (!dayId || rawSession.day_id === dayId) ? rawSession : null
+  const incompleteSession = rawSession?.status === 'incomplete' || rawSession?.source === 'app_incomplete'
+  const session = rawSession && !incompleteSession && (!dayId || rawSession.day_id === dayId) ? rawSession : null
   const doneTotal = Object.values(doneCount).reduce((a, n) => a + n, 0)
   useKeepAwake(rawSession?.status === 'in_progress')
 
@@ -127,6 +128,7 @@ export default function Today() {
       .from('sessions')
       .select('id,date,day_id,started_at,sets!inner(id)')
       .eq('source', 'app')
+      .eq('status', 'done')
       .eq('sets.done', true)
       .not('day_id', 'is', null)
       .order('date', { ascending: true })
@@ -180,6 +182,8 @@ export default function Today() {
       const { data: legs } = await supabase
         .from('sessions')
         .select('*,sets!inner(id)')
+        .eq('status', 'done')
+        .neq('source', 'app_incomplete')
         .eq('sets.done', true)
         .in('day_id', legDayIds)
         .lt('date', today)
@@ -270,11 +274,18 @@ export default function Today() {
     starting.current = false
   }
 
-  async function finish() {
+  async function finish(incomplete = false) {
     if (!session) return
     setConfirmFinish(false)
     clearRest()
-    await supabase.from('sessions').update({ status: 'done', ended_at: new Date().toISOString() }).eq('id', session.id)
+    let result = await supabase.from('sessions').update({ status: incomplete ? 'incomplete' : 'done', ended_at: new Date().toISOString() }).eq('id', session.id)
+    if (incomplete && result.error?.code === '23514') {
+      result = await supabase.from('sessions').update({ status: 'done', source: 'app_incomplete', ended_at: new Date().toISOString() }).eq('id', session.id)
+    }
+    if (result.error) {
+      setConfirmFinish(true)
+      return
+    }
     void refresh()
   }
 
@@ -428,6 +439,21 @@ export default function Today() {
         </section>
       )}
 
+      {incompleteSession && (
+        <section className="card warn">
+          <h3>Sesión incompleta guardada</h3>
+          <p>{doneTotal} series{cardioMin > 0 ? ` · ${Math.round(cardioMin)} min de cardio` : ''}. Se conservan los datos; no cuenta para el ciclo ni la progresión.</p>
+        </section>
+      )}
+
+      {session?.status === 'done' && !showSummary && (
+        <section className="card last">
+          <h3>Sesión completada</h3>
+          <p>{doneTotal} series{cardioMin > 0 ? ` · ${Math.round(cardioMin)} min de cardio` : ''}.</p>
+          <button className="link" onClick={reopen}>Reabrir sesión</button>
+        </section>
+      )}
+
       {pendingSoreness && !!day?.name.startsWith('Pierna') && (
         <section className="card warn">
           <h3>¿Qué tan adoloridas están tus piernas?</h3>
@@ -452,7 +478,7 @@ export default function Today() {
                 onClick={() => chooseDay(d.id)}
               >
                 <strong>Día {d.weekday}</strong>
-                <span>{date ? `✓ ${shortDate(date)}` : 'pendiente'}</span>
+                <span>{date ? `✓ ${shortDate(date)}` : dayId === d.id ? 'Elegido' : 'pendiente'}</span>
               </button>
             )
           })}
@@ -468,7 +494,7 @@ export default function Today() {
             <button onClick={() => setPendingDay(null)}>No, seguir con mi sesión</button>
           </div>
         )}
-        <p className="muted">Toca un día para ver su rutina. Si ya tienes una sesión en curso, te pedirá confirmar antes de cambiarla. Un día repetido no cuenta doble; el ciclo se completa con los 5.</p>
+        <p className="muted">Borde claro = día elegido. ✓ indica que ya lo completaste en este ciclo.</p>
       </section>
 
       <label className="muted">
@@ -516,11 +542,10 @@ export default function Today() {
               {day && cycleDays[day.weekday] && (
                 <p className="ok">Hecho el {shortDate(cycleDays[day.weekday])}{cycleSets[day.weekday] ? ' · ' + cycleSets[day.weekday] + ' series' : ''} ✔ en este ciclo. Si lo repites, no cuenta doble.</p>
               )}
-              <button className="primary" onClick={start}>{day && cycleDays[day.weekday] ? 'Repetir este día' : 'Empezar sesión'}</button>
+              <button className="primary start-inline" onClick={start}>{day && cycleDays[day.weekday] ? 'Repetir este día' : 'Empezar sesión'}</button>
             </>
           )}
           {session && budget != null && session.status === 'in_progress' && <p className="muted">Plan para {budget} min · ≈{timePlan.totalMin} min con cardio.</p>}
-          {session?.status === 'done' && <p className="ok">Sesión terminada ✔ <button className="link" onClick={reopen}>reabrir</button></p>}
         </section>
       )}
 
@@ -563,11 +588,22 @@ export default function Today() {
               <h3>Aún falta algo</h3>
               {missing.map((m) => <p key={m.name}>{m.name}: {m.done}/{m.sets} series</p>)}
               {cardioMissing && <p>Cardio sin registrar{cardio?.optional ? ' (opcional hoy)' : ''}.</p>}
-              <button className="primary" onClick={() => void finish()}>Terminar igual</button>
+              <button className="primary" onClick={() => void finish(true)}>Guardar sesión incompleta</button>
               <button onClick={() => setConfirmFinish(false)}>Seguir entrenando</button>
             </section>
           )}
         </>
+      )}
+
+      {day && !session && (
+        <section className="start-dock" aria-label="Iniciar entrenamiento">
+          <p>{budget == null
+            ? `Rutina completa · ${totalSets} series · ≈${timePlan.totalMin} min`
+            : `Plan ${budget} min · ${totalSets} series · ≈${timePlan.totalMin} min`}</p>
+          <button className="primary" onClick={start}>
+            {cycleDays[day.weekday] ? 'Repetir este día' : 'Empezar sesión'}
+          </button>
+        </section>
       )}
     </div>
   )
