@@ -3,6 +3,11 @@
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
+## 3.18 · 2026-11-19
+- Rediseño visual completo: nueva portada de entrenamiento, progreso del ciclo animado, métricas rápidas, navegación con iconos y una identidad gráfica más marcada.
+- Mejoras de interacción y respuesta táctil, además de acceso renovado y soporte para movimiento reducido.
+- No cambia la rutina ni modifica los registros de entrenamiento.
+
 ## 3.17 · 2026-11-19
 - Nueva interfaz reorganizada y mejor uso en móvil; las vistas de progreso e historial quedan juntas.
 - Se conserva el historial existente y se muestran los entrenamientos incompletos sin contarlos en el ciclo ni en la progresión.

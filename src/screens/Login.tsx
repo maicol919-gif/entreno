@@ -31,8 +31,16 @@ export default function Login() {
 
   return (
     <div className="center">
-      <form className="card login" onSubmit={submit}>
-        <h1>Entreno</h1>
+      <div className="login-layout">
+        <section className="login-intro">
+          <span className="brand-glyph" aria-hidden="true">E</span>
+          <p className="eyebrow">FUERZA · DÍA A DÍA</p>
+          <h1>Tu progreso<br />se construye aquí.</h1>
+          <p className="login-lead">Entrena con intención. Guarda cada sesión. Vuelve más fuerte.</p>
+          <div className="login-points"><span><i /> Tu historial, siempre contigo</span><span><i /> Tu ritmo, tus datos</span></div>
+        </section>
+        <form className="card login" onSubmit={submit}>
+          <div className="login-form-head"><span className="eyebrow">ESPACIO PERSONAL</span><h2>{mode === 'reset' ? 'Recupera el acceso' : mode === 'up' ? 'Crea tu cuenta' : 'Qué bueno verte.'}</h2><p className="muted">{mode === 'reset' ? 'Te enviaremos un enlace seguro a tu correo.' : 'Entra para continuar donde lo dejaste.'}</p></div>
         <label>
           Correo
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required />
@@ -46,7 +54,8 @@ export default function Login() {
         {mode === 'in' && <button type="button" className="link" onClick={() => { setMsg(null); setMode('reset') }}>Olvidé mi contraseña</button>}
         {mode !== 'in' && <button type="button" className="link" onClick={() => { setMsg(null); setMode('in') }}>Volver a iniciar sesión</button>}
         {mode === 'in' && <button type="button" className="link" onClick={() => { setMsg(null); setMode('up') }}>Primera vez: crear cuenta</button>}
-      </form>
+        </form>
+      </div>
     </div>
   )
 }

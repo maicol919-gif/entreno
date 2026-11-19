@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useData } from '../store'
 import { adjustForSoreness, cardioFor, prescribe, toISODate, type Prescription } from '../lib/plan'
-import { blockFor, itemsForBlock, nextBlockStart } from '../lib/rotation'
+import { blockFor, itemsForBlock } from '../lib/rotation'
 import { computeCycles, nextPendingDay, type CycleSession } from '../lib/cycles'
 import { alternatives } from '../lib/alternatives'
 import { readRun } from '../lib/cardioRun'
@@ -362,6 +362,8 @@ export default function Today() {
     const todayNumber = rawSession?.day_id ? days.find((d) => d.id === rawSession.day_id)?.weekday : undefined
     return rawSession?.status === 'done' && todayNumber && !(todayNumber in cycleDays) ? { ...cycleDays, [todayNumber]: today } : cycleDays
   })()
+  const cycleDoneCount = Math.min(5, Object.keys(trackerDays).length)
+  const dateLabel = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)
   const shortDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 
   const missing = activeItems
@@ -416,8 +418,33 @@ export default function Today() {
 
   return (
     <div className="screen">
-      <h2>{day ? `Día ${day.weekday} · ${day.name}` : 'Descanso'}</h2>
-      <p className="muted">Ciclo {week} · Bloque {block} (cambia en el ciclo {nextBlockStart(week)}) · toca el siguiente día de tu rutina, sin importar la fecha.</p>
+      <section className={`today-hero ${session ? 'is-live' : ''}`}>
+        <div className="hero-copy">
+          <span className="eyebrow"><i /> {dateLabel}</span>
+          <h1>{session?.status === 'in_progress' ? 'Sesión en marcha' : day ? day.name : 'Día de recuperación'}</h1>
+          <p>{session?.status === 'in_progress'
+            ? `${doneTotal} series guardadas · seguimos donde lo dejaste`
+            : day ? `Día ${day.weekday} · Ciclo ${week} · Bloque ${block}` : 'Recupera, recarga y vuelve más fuerte.'}</p>
+          {day && <button className="hero-link" onClick={() => document.getElementById('training-plan')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}>
+            {session ? 'Continuar sesión' : 'Preparar entrenamiento'} <span aria-hidden="true">↘</span>
+          </button>}
+        </div>
+        <div className="cycle-orbit" aria-label={`${cycleDoneCount} de 5 días completados`}>
+          <svg viewBox="0 0 82 82" role="img" aria-hidden="true">
+            <circle className="orbit-track" cx="41" cy="41" r="34" />
+            <circle className="orbit-value" cx="41" cy="41" r="34" style={{ strokeDashoffset: `${213.6 * (1 - cycleDoneCount / 5)}` }} />
+          </svg>
+          <strong>{cycleDoneCount}<small>/5</small></strong>
+          <span>DÍAS</span>
+        </div>
+        <span className="hero-index" aria-hidden="true">0{day?.weekday ?? '·'}</span>
+      </section>
+
+      <div className="metric-strip" aria-label="Resumen de hoy">
+        <div><span>SEMANA</span><strong>{week}<small> / 7</small></strong></div>
+        <div><span>VOLUMEN DE HOY</span><strong>{totalSets}<small> series</small></strong></div>
+        <div><span>TIEMPO ESTIMADO</span><strong>{timePlan.totalMin}<small> min</small></strong></div>
+      </div>
 
       {!session && completed >= 1 && Object.keys(cycleDays).length === 0 && (
         <section className="card last">
@@ -466,8 +493,8 @@ export default function Today() {
         </section>
       )}
 
-      <section className="card">
-        <h3>Ciclo {week}: tus 5 días</h3>
+      <section className="card cycle-card">
+        <div className="section-heading"><div><span className="eyebrow">TU CONSTANCIA</span><h3>Ciclo {week}<small> / 5 entrenamientos</small></h3></div><span className="cycle-count">{cycleDoneCount}<small>/5</small></span></div>
         <div className="daychips">
           {days.map((d) => {
             const date = trackerDays[d.weekday]
@@ -497,8 +524,8 @@ export default function Today() {
         <p className="muted">Borde claro = día elegido. ✓ indica que ya lo completaste en este ciclo.</p>
       </section>
 
-      <label className="muted">
-        Día de rutina
+      <label className="muted day-picker">
+        <span>ELIGE TU DÍA</span>
         <select value={dayId ?? ''} onChange={(e) => chooseDay(e.target.value || null)}>
           <option value="">Descanso</option>
           {days.map((d) => <option key={d.id} value={d.id}>Día {d.weekday} · {d.name}{trackerDays[d.weekday] ? ' ✓' : ''}</option>)}
@@ -508,8 +535,8 @@ export default function Today() {
       {!day && <section className="card"><h3>Día de descanso</h3><p>Camina 30–45 min, duerme bien y come tu proteína.</p></section>}
 
       {day && (
-        <section className="card">
-          <h3>{day.name}</h3>
+        <section className="card plan-card" id="training-plan">
+          <div className="section-heading"><div><span className="eyebrow">PLAN DE HOY</span><h3>{day.name}</h3></div><span className="plan-spark" aria-hidden="true">✳</span></div>
           {!session && (
             <>
               <p className="muted">¿Cuánto tiempo tienes hoy? (incluye el cardio)</p>
