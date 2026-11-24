@@ -4,14 +4,15 @@ App web instalable (PWA) para llevar un entrenamiento de fuerza con progresión 
 
 ## Qué hace
 
-- **Rutina por número de día** (Día 1 a 5): sin depender del día de la semana. Un ciclo se completa al hacer los 5 días en cualquier orden; en Hoy ves cuáles llevas hechos (con fecha) y la app propone el primer día pendiente después del último que entrenaste.
+- **Rutina semanal**: lunes Pierna A; martes espalda, bíceps y core; miércoles pecho, hombros y tríceps; jueves descanso; viernes Pierna B; sábado torso completo, brazos y core; domingo descanso. Las sesiones antiguas conservan su rutina original.
+- **Core dos veces por semana**: flexión de tronco en máquina, dead bug con recorrido corto y Pallof press, con pautas para cuidar el rango cómodo de cadera y hombros.
 - **Registro por serie**: repeticiones, peso y **RIR obligatorio** (repeticiones que te quedaban en reserva). Se guarda al instante.
 - **"Última vez" siempre visible** al abrir un ejercicio, con las series, el RIR y tu nota anterior.
 - **Carga base automática** (doble progresión): toma el peso más exigente que repetiste en 2 o más series la última vez y propone una repetición más; si llegaste al tope del rango con el RIR objetivo, propone subir. En ejercicios con ayuda (fondos asistidos) la progresión es bajar la ayuda.
 - **Descanso global**: contador siempre visible, que sobrevive a cambiar de pantalla o recargar, con vibración y sonido.
 - **Guía de técnica** por ejercicio (posición, pasos, errores) y video de YouTube incrustado para la mayoría.
 - **Piernas con arranque suave**: semanas 1-3 con menos series y RIR alto; descarga cada 7.ª semana; las agujetas (0-10) que anotas ajustan el volumen de la siguiente sesión de pierna.
-- **Cardio en cinta guiado** al final de la sesión, en tres niveles que se eligen según cómo sientas las piernas: **dura** (intervalos de 20 a 30 min), **media** (bloques continuos de 25 a 30 min) y **suave** (caminata en cuesta de 30 a 40 min). La duración crece por fases del ciclo. Pregunta si hay partido pronto (limita el nivel) y, tras una molestia, pausa el nivel dura y el avance de fase hasta 2 sesiones seguidas sin molestia. La pantalla guiada muestra inclinación y velocidad como la máquina, la lista completa de tramos y una alerta luminosa en cada cambio. Test de habla y progresión de una sola variable por sesión. El cronómetro se guarda por hora de inicio: si la página se recarga, el cardio se reabre solo y sigue contando.
+- **Cardio con opciones**: plan guiado de resistencia, caminata inclinada con el protocolo personalizado o registro de otra máquina. El test de habla aparece solo durante el plan guiado.
 - **Progreso**: series de los últimos 7 días por músculo contra su rango objetivo, ejercicios que suben o están estancados, cardio y peso corporal.
 - **Cierre de ciclo**: al terminar el Día 5 muestra un resumen del ciclo y el siguiente día de entreno avisa que empieza uno nuevo.
 - **Ejercicios incómodos**: botón "Me incomodó" con el motivo; la próxima vez la app propone reemplazos del mismo músculo (priorizando máquinas y poleas si el problema es apoyo o dolor) y cambias con un toque, conservando el historial.
@@ -31,7 +32,7 @@ La alimentación, el peso y la cintura viven en la app hermana **Nutrición** (r
 ## Puesta en marcha
 
 1. Crea un proyecto en Supabase y ejecuta [`supabase/schema.sql`](supabase/schema.sql) en el SQL Editor.
-   Si la base ya existe, ejecuta también [`supabase/migrations/20261107_exercise_note_type.sql`](supabase/migrations/20261107_exercise_note_type.sql) antes de actualizar el front. Añade categorías de notas, descanso opcional por ejercicio y el estado `incomplete` sin borrar ni transformar registros existentes. El descanso legado se conserva como respaldo mientras cada ejercicio tenga el campo nuevo vacío.
+   Si la base ya existe, aplica las migraciones en orden: [`20261107_exercise_note_type.sql`](supabase/migrations/20261107_exercise_note_type.sql) y [`20261124_evidence_routine_core.sql`](supabase/migrations/20261124_evidence_routine_core.sql). La última conserva las rutinas antiguas para leer el historial y activa la rutina semanal nueva.
 2. Crea `.env.local` con la URL y la clave pública (publishable/anon) de tu proyecto:
 
    ```

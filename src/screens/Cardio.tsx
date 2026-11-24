@@ -382,12 +382,12 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
           <div className={`speechbanner ${speechNow ? 'now' : 'soon'}`} role="alert">
             {speechNow ? (
               <>
-                <strong>¡DI LA FRASE AHORA! · {fmt(Math.max(0, sw.to - elapsed))}</strong>
-                <div className="marquee"><span>“{SPEECH_PHRASE}” · “{SPEECH_PHRASE}” · “{SPEECH_PHRASE}”</span></div>
-                <small>Respira normal, sin tomar aire antes. Dila de corrido.</small>
+                <strong>Prueba del habla · {fmt(Math.max(0, sw.to - elapsed))}</strong>
+                <div className="speech-prompt">“{SPEECH_PHRASE}”</div>
+                <small>Dila de corrido, respirando normal. Al acabar, marca si salió entera, en dos partes o no pudiste terminarla.</small>
               </>
             ) : (
-              <strong>Prepárate: test de habla en {Math.max(1, Math.ceil(sw.from - elapsed))} s</strong>
+              <><strong>En {Math.max(1, Math.ceil(sw.from - elapsed))} s aparecerá la prueba del habla</strong><small>Cuando salga la frase, intenta decirla sin tomar aire antes.</small></>
             )}
           </div>
         )}
@@ -507,7 +507,7 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
       <section className="card cardio-route-list">
         <button className="cardio-route" onClick={() => setRoute('guided')}>
           <span className="route-icon recommended">↗</span>
-          <span><strong>Mejorar resistencia respiratoria</strong><small>Plan guiado según tus piernas, recuperación y progreso, con test de habla.</small></span>
+          <span><strong>Mejorar resistencia respiratoria</strong><small>Plan guiado según tus piernas y progreso. Al final de un tramo exigente aparece una frase para valorar el esfuerzo.</small></span>
           <b aria-hidden="true">›</b>
         </button>
         <button className="cardio-route" onClick={() => setRoute('custom')}>
@@ -521,7 +521,7 @@ export default function Cardio({ plan, sessionId, sessionDate, legCtx, week, ext
           <b aria-hidden="true">›</b>
         </button>
       </section>
-      <p className="muted cardio-separation">La caminata inclinada suma actividad y puede ayudarte a sostener el plan; no es una zona especial que garantice más pérdida de grasa. Se registra aparte y no cambia la progresión de resistencia.</p>
+      <p className="muted cardio-separation">La frase del test solo aparece en el plan guiado, durante el último tramo exigente. En la caminata inclinada puedes seguir tu protocolo y registrar cómo se sintió, sin que aparezca esa pregunta. La inclinación suma actividad; no crea una zona especial que garantice más pérdida de grasa.</p>
     </div>
   )
 

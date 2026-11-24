@@ -17,6 +17,9 @@ export interface BudgetItem {
   id: string
   sets: number
   position: number
+  /** Mantén este ejercicio en la sesión; puede bajar a minSets cuando falte tiempo. */
+  essential?: boolean
+  minSets?: number
 }
 
 export interface BudgetResult {
@@ -53,14 +56,14 @@ export function fitToTime(items: BudgetItem[], availableMin: number | null, card
   if (availableMin == null || total() <= availableMin) return result(false)
 
   const tail = [...sorted].reverse() // de menos a más importante
-  const optional = tail.filter((_, idx) => idx < Math.max(0, sorted.length - CORE_COUNT))
+  const optional = tail.filter((it) => sorted.findIndex((item) => item.id === it.id) >= CORE_COUNT && !it.essential)
 
   // 1) bajar series de los ejercicios no principales, de uno en uno, empezando por el último
   let changed = true
   while (total() > availableMin && changed) {
     changed = false
     for (const it of optional) {
-      if (sets[it.id] > MIN_SETS) {
+      if (sets[it.id] > (it.minSets ?? MIN_SETS)) {
         sets[it.id] -= 1
         changed = true
         if (total() <= availableMin) break
@@ -72,11 +75,12 @@ export function fitToTime(items: BudgetItem[], availableMin: number | null, card
     if (total() <= availableMin) break
     sets[it.id] = 0
   }
-  // 3) bajar series de los ejercicios principales hasta el mínimo
+  // 3) si aún falta tiempo, reducir las series de los ejercicios esenciales y principales,
+  // respetando el mínimo individual (el core conserva al menos una serie por movimiento).
   changed = true
   while (total() > availableMin && changed) {
     changed = false
-    for (const it of tail.filter((t) => sets[t.id] > MIN_SETS)) {
+    for (const it of tail.filter((t) => sets[t.id] > (t.minSets ?? MIN_SETS))) {
       sets[it.id] -= 1
       changed = true
       if (total() <= availableMin) break

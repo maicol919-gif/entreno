@@ -27,8 +27,11 @@ create table public.routine_days (
   user_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
   weekday int not null check (weekday between 1 and 7), -- número de día de la rutina (1, 2, 3...)
   name text not null,
-  unique (user_id, weekday)
+  calendar_weekday int check (calendar_weekday between 1 and 7),
+  is_active boolean not null default true
 );
+create unique index routine_days_user_active_weekday_key on public.routine_days(user_id, weekday) where is_active;
+create unique index routine_days_user_active_calendar_key on public.routine_days(user_id, calendar_weekday) where is_active and calendar_weekday is not null;
 
 create table public.routine_items (
   id uuid primary key default gen_random_uuid(),

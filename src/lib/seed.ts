@@ -50,7 +50,11 @@ const EX: ExDef[] = [
   { key: 'aductor', name: 'Encogimiento aductor', primary: 'Aductores', secondary: [], equipment: 'Máquina', load: 'total', incr: 3.5, reps: [12, 15] },
   { key: 'gemelo', name: 'Elevación gemelo máquina', primary: 'Gemelos', secondary: [], equipment: 'Máquina', load: 'total', incr: 5, reps: [10, 15], note: 'Registra el peso TOTAL (no por lado) para poder compararlo.' },
   { key: 'crunch', name: 'Crunch', primary: 'Abdomen', secondary: [], equipment: 'Peso corporal', load: 'total', incr: 2.5, reps: [12, 15] },
+  { key: 'crunchMachine', name: 'Crunch abdominal máquina', primary: 'Abdomen', secondary: [], equipment: 'Máquina abdominal', load: 'total', incr: 2.5, reps: [10, 15] },
   { key: 'bicicleta', name: 'Abdominales estilo bicicleta', primary: 'Abdomen', secondary: [], equipment: 'Peso corporal', load: 'total', incr: 2.5, reps: [12, 15] },
+  { key: 'deadBug', name: 'Dead bug (toques de talón)', primary: 'Abdomen', secondary: ['Flexores de cadera'], equipment: 'Peso corporal y colchoneta', load: 'total', incr: 2.5, reps: [6, 8], note: 'Repeticiones por lado. Mantén rodillas flexionadas y reduce el recorrido si aparece el traqueteo de ingle/cadera; detén el ejercicio si molesta.' },
+  { key: 'pallof', name: 'Pallof press de pie', primary: 'Abdomen', secondary: ['Oblicuos'], equipment: 'Polea o banda', load: 'total', incr: 1, reps: [8, 10], note: 'Repeticiones por lado. Empieza muy ligero, con brazos dentro de un rango cómodo para tus hombros; detén el ejercicio si aparece molestia.' },
+  { key: 'abductor', name: 'Abductor máquina', primary: 'Glúteos', secondary: ['Abductores de cadera'], equipment: 'Máquina abductora', load: 'total', incr: 2.5, reps: [12, 20] },
   { key: 'perfectSquat', name: 'Sentadilla Perfect Squat', primary: 'Cuádriceps', secondary: ['Glúteos'], equipment: 'Perfect Squat (palanca con discos)', load: 'total', incr: 5, reps: [8, 12], note: 'Máquina guiada con hombreras. Anota siempre igual la carga (total o discos por lado) para poder comparar.' },
   { key: 'gluteTrainer', name: 'Glute Trainer', primary: 'Glúteos', secondary: ['Isquiotibiales'], equipment: 'Máquina Glute Trainer', load: 'total', incr: 5, reps: [10, 15], note: 'Máquina de glúteo: empuja con el talón, sin arquear la espalda baja.' },
   { key: 'predicadorZ', name: 'Curl predicador con barra Z', primary: 'Bíceps', secondary: [], equipment: 'Banco predicador + barra Z precargada', load: 'total', incr: 5, reps: [8, 12], note: 'Barras Z precargadas de 10, 15, 20, 25 y 30 kg.' },
@@ -58,46 +62,50 @@ const EX: ExDef[] = [
 
 type ItemDef = [key: string, sets: number, repMin: number, repMax: number, rir: number, startWeek?: number]
 
-const ROUTINE: { weekday: number; name: string; items: ItemDef[] }[] = [
+const ROUTINE: { weekday: number; calendarWeekday: number; name: string; items: ItemDef[] }[] = [
   {
     weekday: 1,
-    name: 'Torso A',
-    items: [
-      ['pressPecho', 3, 6, 10, 2],
-      ['pressIncMancuernas', 3, 8, 12, 2],
-      ['remoMaq', 3, 8, 12, 2],
-      ['remoPolea', 3, 10, 12, 2],
-      ['posteriorSentado', 2, 12, 15, 1],
-      ['extTriceps', 2, 10, 15, 1],
-    ],
-  },
-  {
-    weekday: 2,
-    name: 'Pierna A (cuádriceps)',
+    calendarWeekday: 1,
+    name: 'Pierna A · cuádriceps y glúteos',
     items: [
       ['prensa', 3, 8, 12, 2],
       ['sentadillaSmith', 2, 8, 12, 2],
       ['extCuad', 3, 10, 15, 1],
       ['bulgara', 2, 8, 12, 2, 8],
       ['gemelo', 3, 10, 15, 1],
-      ['crunch', 3, 12, 15, 2],
+    ],
+  },
+  {
+    weekday: 2,
+    calendarWeekday: 2,
+    name: 'Espalda, bíceps y core',
+    items: [
+      ['jalon', 3, 8, 12, 2],
+      ['remoMaq', 3, 8, 12, 2],
+      ['remoPolea', 2, 10, 12, 2],
+      ['martillo', 3, 8, 12, 2],
+      ['curlPolea1', 2, 12, 15, 2],
+      ['crunchMachine', 2, 10, 15, 3],
+      ['deadBug', 2, 6, 8, 3],
+      ['pallof', 2, 8, 10, 3],
     ],
   },
   {
     weekday: 3,
-    name: 'Hombros y brazos',
+    calendarWeekday: 3,
+    name: 'Pecho, hombros y tríceps',
     items: [
+      ['pressPecho', 3, 6, 10, 2],
+      ['pressIncMancuernas', 3, 8, 12, 2],
       ['pressMilitarMan', 3, 8, 12, 2],
       ['lateralPolea', 3, 12, 20, 1],
       ['posteriorPolea', 2, 12, 15, 1],
-      ['martillo', 3, 8, 12, 2],
-      ['curlPolea1', 2, 12, 15, 1],
-      ['francesZ', 3, 8, 12, 2],
-      ['mentón', 2, 12, 15, 2],
+      ['extTriceps', 3, 10, 15, 2],
     ],
   },
   {
     weekday: 4,
+    calendarWeekday: 5,
     name: 'Pierna B (femoral y glúteo)',
     items: [
       ['curlFemoral', 3, 10, 12, 2],
@@ -105,19 +113,23 @@ const ROUTINE: { weekday: number; name: string; items: ItemDef[] }[] = [
       ['pmr', 2, 8, 12, 2, 8],
       ['aductor', 2, 12, 15, 2],
       ['gemelo', 3, 12, 15, 1],
-      ['bicicleta', 3, 12, 15, 2],
+      ['abductor', 3, 12, 20, 2],
     ],
   },
   {
     weekday: 5,
-    name: 'Torso B',
+    calendarWeekday: 6,
+    name: 'Torso completo, brazos y core',
     items: [
       ['jalon', 3, 8, 12, 2],
       ['pressIncSmith', 3, 6, 10, 2],
       ['remoMancuernas', 3, 10, 12, 2],
-      ['fondos', 3, 8, 12, 2],
+      ['pressPecho', 2, 8, 12, 2],
       ['curlSentado', 2, 10, 15, 1],
-      ['isometrica', 2, 12, 15, 1],
+      ['extTriceps', 2, 10, 15, 2],
+      ['crunchMachine', 2, 10, 15, 3],
+      ['deadBug', 2, 6, 8, 3],
+      ['pallof', 2, 8, 10, 3],
     ],
   },
 ]
@@ -151,7 +163,7 @@ export async function seedIfEmpty(): Promise<boolean> {
 
   const { data: days, error: e2 } = await supabase
     .from('routine_days')
-    .insert(ROUTINE.map((d) => ({ weekday: d.weekday, name: d.name })))
+    .insert(ROUTINE.map((d) => ({ weekday: d.weekday, calendar_weekday: d.calendarWeekday, is_active: true, name: d.name })))
     .select('id,weekday')
   if (e2) throw e2
   const dayByWeekday = new Map(days!.map((d) => [d.weekday as number, d.id as string]))

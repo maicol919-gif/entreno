@@ -78,15 +78,15 @@ export interface CardioPlan {
 
 /**
  * Cardio en cinta al final de la sesión de fuerza.
- * - Días 1, 3 y 5 (torso): hasta nivel DURA.
- * - Días 2 y 4 (pierna): como máximo nivel MEDIA (acabas de entrenar piernas); opcional.
+ * - Días 2, 3 y 5 (torso): hasta nivel DURA.
+ * - Días 1 y 4 (pierna): como máximo nivel MEDIA (acabas de entrenar piernas); opcional.
  * - Semana de descarga: solo nivel SUAVE.
  * El nivel final lo decide cómo sientes las piernas (frescas = dura, normales = media, cargadas = suave).
  */
 export function cardioFor(weekday: number, week: number): CardioPlan | null {
   if (weekday < 1 || weekday > 5) return null
-  if (isDeload(week)) return { cap: 'suave', optional: weekday === 2 || weekday === 4 }
-  if (weekday === 2 || weekday === 4) return { cap: 'media', optional: true }
+  if (isDeload(week)) return { cap: 'suave', optional: weekday === 1 || weekday === 4 }
+  if (weekday === 1 || weekday === 4) return { cap: 'media', optional: true }
   return { cap: 'dura', optional: false }
 }
 

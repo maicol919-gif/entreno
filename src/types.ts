@@ -20,6 +20,8 @@ export interface RoutineDay {
   id: string
   weekday: number
   name: string
+  calendar_weekday?: number | null
+  is_active?: boolean
 }
 
 export interface RoutineItem {

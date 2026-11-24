@@ -67,8 +67,6 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
   const [note, setNote] = useState('')
   const [noteType, setNoteType] = useState('otra')
   const [noteTypeAvailable, setNoteTypeAvailable] = useState<boolean | null>(null)
-  const [restDuration, setRestDuration] = useState(String(exercise.rest_seconds ?? ''))
-  const [restError, setRestError] = useState<string | null>(null)
   const { start: startTimer } = useRest()
   const [needRir, setNeedRir] = useState<string | null>(null)
   const setsRef = useRef<SetRow[] | null>(null)
@@ -83,22 +81,11 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
   const [ref, setRef] = useState<{ name: string; last: PastSession } | null>(null)
   const videoId = VIDEOS[exercise.name]
   const guide = GUIDES[exercise.name]
-  const hasExerciseRest = Object.prototype.hasOwnProperty.call(exercise, 'rest_seconds')
   useEffect(() => {
     setsRef.current = sets
   }, [sets])
 
-  const startRest = () => startTimer(Number(restDuration) > 0 ? Number(restDuration) : restSeconds)
-
-  async function saveRestDuration(value: string) {
-    const seconds = value.trim() ? Math.round(Number(value)) : null
-    if (seconds != null && (!Number.isFinite(seconds) || seconds < 15 || seconds > 900)) {
-      setRestError('Usa entre 15 y 900 segundos, o deja el campo vacío para conservar el descanso legado.')
-      return
-    }
-    const { error } = await supabase.from('exercises').update({ rest_seconds: seconds }).eq('id', exercise.id)
-    setRestError(error ? `No se guardó: ${error.message}` : null)
-  }
+  const startRest = () => startTimer(restSeconds)
 
   useEffect(() => {
     let cancelled = false
@@ -388,10 +375,6 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
 
       <section className="card">
         <h3>Registro <span className="muted">({LOAD_LABEL[exercise.load_type]})</span></h3>
-        {hasExerciseRest && <label>Descanso de este ejercicio (segundos, opcional)
-          <input type="number" min={15} max={900} placeholder={`Legado: ${restSeconds} s`} value={restDuration} onChange={(e) => setRestDuration(e.target.value)} onBlur={(e) => void saveRestDuration(e.target.value)} />
-        </label>}
-        {restError && <p className="err">{restError}</p>}
         <div className="set head"><span>#</span><span>Reps</span><span>Carga</span><span>RIR</span><span /></div>
         {(sets ?? []).map((r) => (
           <div className={`set ${r.done ? 'done' : ''}`} key={r.id}>

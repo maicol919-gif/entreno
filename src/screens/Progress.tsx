@@ -26,7 +26,7 @@ const TARGETS: Record<string, [number, number]> = {
   Glúteos: [4, 10],
   Aductores: [2, 6],
   Gemelos: [6, 10],
-  Abdomen: [4, 8],
+  Abdomen: [6, 12],
 }
 
 interface Trend {

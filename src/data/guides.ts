@@ -331,6 +331,18 @@ export const GUIDES: Record<string, Guide> = {
     errors: ["Tirar con los brazos","Doblarse desde la cadera en vez de enrollar","Usar impulso"],
     query: "Matrix contracción abdominal máquina crunch",
   },
+  'Dead bug (toques de talón)': {
+    setup: 'Túmbate boca arriba, rodillas flexionadas sobre las caderas y brazos apuntando al techo. Mantén la espalda baja cómoda contra el suelo y respira.',
+    steps: ['Activa el abdomen al exhalar.', 'Baja un talón hacia el suelo sin estirar por completo la pierna; vuelve y alterna.', 'Usa solo el recorrido en que la pelvis permanece estable y no aparece el traqueteo de ingle/cadera.'],
+    errors: ['Arquear la espalda para bajar más', 'Acelerar o contener la respiración', 'Continuar si aparece molestia o traqueteo doloroso'],
+    query: 'dead bug heel taps técnica fisioterapia',
+  },
+  'Pallof press de pie': {
+    setup: 'Coloca una polea o banda a la altura del pecho. Ponte de lado al anclaje, pies firmes y agarre cerca del esternón. Elige una resistencia muy ligera.',
+    steps: ['Exhala y aprieta suavemente el abdomen.', 'Empuja las manos al frente solo hasta el rango cómodo del hombro, evitando que el tronco gire.', 'Regresa despacio y completa el lado contrario.'],
+    errors: ['Elegir demasiada resistencia', 'Girar o inclinar el torso', 'Forzar el hombro o el recorrido'],
+    query: 'Pallof press de pie técnica correcta',
+  },
 }
 
 export function videoSearchUrl(name: string, query?: string): string {

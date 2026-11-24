@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useData } from '../store'
-import { adjustForSoreness, cardioFor, prescribe, toISODate, type Prescription } from '../lib/plan'
+import { adjustForSoreness, cardioFor, prescribe, toISODate, weekdayOf, type Prescription } from '../lib/plan'
 import { blockFor, itemsForBlock } from '../lib/rotation'
 import { computeCycles, nextPendingDay, type CycleSession } from '../lib/cycles'
 import { alternatives } from '../lib/alternatives'
@@ -70,6 +70,9 @@ function readAck(): string | null {
 
 export default function Today() {
   const { days, items, exercises, settings, reload } = useData()
+  // Los días archivados siguen disponibles para interpretar sesiones antiguas;
+  // solo los activos aparecen como opciones para entrenamientos nuevos.
+  const routineDays = useMemo(() => days.filter((d) => d.is_active !== false), [days])
   const { clear: clearRest } = useRest()
   const now = useMemo(() => new Date(), [])
   const today = toISODate(now)
@@ -156,16 +159,21 @@ export default function Today() {
         sessions: ids.length,
         sets: count ?? 0,
         cardioMin: (cl ?? []).reduce((acc, r) => acc + Number(r.minutes), 0),
-        repeated: ids.length - days.length,
+        repeated: ids.length - routineDays.length,
         days: incl.last.days,
       })
     } else {
       setSummary(null)
     }
     if (!cur && !touched.current) {
-      // el día que toca: el primer día pendiente del ciclo después del último que entrenaste
-      const next = nextPendingDay(base.lastDay, new Set(Object.keys(base.current.days).map(Number)), days.length || 5)
-      setDayId(days.find((d) => d.weekday === next)?.id ?? null)
+      // La rutina oficial está asociada al día real; jueves y domingo son descanso.
+      const todayRoutine = routineDays.find((d) => d.calendar_weekday === weekdayOf(now))
+      if (todayRoutine) setDayId(todayRoutine.id)
+      else if (days.every((d) => d.calendar_weekday == null)) {
+        // Compatibilidad hasta que la migración de calendario esté aplicada.
+        const next = nextPendingDay(base.lastDay, new Set(Object.keys(base.current.days).map(Number)), routineDays.length || 5)
+        setDayId(routineDays.find((d) => d.weekday === next)?.id ?? null)
+      } else setDayId(null)
     }
     if (cur) {
       if (cur.status === 'in_progress' || !touched.current) setDayId((d) => cur.day_id ?? d)
@@ -338,7 +346,7 @@ export default function Today() {
   const timePlan = planToTime(
     dayItems.flatMap((item) => {
       const ex = exById.get(item.exercise_id)
-      return ex ? [{ id: item.id, sets: baseRx(item, ex).sets, position: item.position }] : []
+      return ex ? [{ id: item.id, sets: baseRx(item, ex).sets, position: item.position, essential: ex.muscle_primary === 'Abdomen', minSets: ex.muscle_primary === 'Abdomen' ? 1 : undefined }] : []
     }),
     budget,
     cardioEstimate,
@@ -503,7 +511,7 @@ export default function Today() {
       <section className="card cycle-card">
         <div className="section-heading"><div><span className="eyebrow">TU CONSTANCIA</span><h3>Ciclo {week}<small> / 5 entrenamientos</small></h3></div><span className="cycle-count">{cycleDoneCount}<small>/5</small></span></div>
         <div className="daychips">
-          {days.map((d) => {
+          {routineDays.map((d) => {
             const date = trackerDays[d.weekday]
             return (
               <button
@@ -511,7 +519,7 @@ export default function Today() {
                 className={`daychip ${date ? 'done' : ''} ${dayId === d.id ? 'sel' : ''}`}
                 onClick={() => chooseDay(d.id)}
               >
-                <strong>Día {d.weekday}</strong>
+                <strong>{d.calendar_weekday ? ['', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'][d.calendar_weekday] : `Día ${d.weekday}`}</strong>
                 <span>{date ? `✓ ${shortDate(date)}` : dayId === d.id ? 'Elegido' : 'pendiente'}</span>
               </button>
             )
@@ -535,11 +543,11 @@ export default function Today() {
         <span>ELIGE TU DÍA</span>
         <select value={dayId ?? ''} onChange={(e) => chooseDay(e.target.value || null)}>
           <option value="">Descanso</option>
-          {days.map((d) => <option key={d.id} value={d.id}>Día {d.weekday} · {d.name}{trackerDays[d.weekday] ? ' ✓' : ''}</option>)}
+          {routineDays.map((d) => <option key={d.id} value={d.id}>{d.calendar_weekday ? `${['', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'][d.calendar_weekday]} · ` : `Día ${d.weekday} · `}{d.name}{trackerDays[d.weekday] ? ' ✓' : ''}</option>)}
         </select>
       </label>
 
-      {!day && <section className="card"><h3>Día de descanso</h3><p>Camina 30–45 min, duerme bien y come tu proteína.</p></section>}
+      {!day && <section className="card"><h3>Día de descanso</h3><p>Jueves y domingo son tus días previstos para recuperar. No hace falta compensarlos con una sesión doble; puedes hacer movilidad cómoda si te apetece.</p></section>}
 
       {day && session?.status !== 'done' && (
         <section className="card plan-card" id="training-plan">
