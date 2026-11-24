@@ -9,12 +9,13 @@ import HistoryTab from './screens/History'
 import Gym from './screens/Gym'
 import SettingsTab from './screens/Settings'
 import Progress from './screens/Progress'
+import ExerciseLibrary from './screens/ExerciseLibrary'
 import { RestProvider } from './rest'
 import UpdateBanner from './UpdateBanner'
 import PasswordRecovery from './screens/PasswordRecovery'
 
 type Tab = 'today' | 'evolution' | 'gym' | 'settings'
-type EvolutionView = 'progress' | 'history'
+type EvolutionView = 'progress' | 'history' | 'library'
 
 const TABS: [Tab, string, string][] = [
   ['today', 'Hoy', 'home'],
@@ -74,8 +75,9 @@ export default function App() {
           <div className="subtabs" aria-label="Vistas de evolución">
             <button className={evolutionView === 'progress' ? 'active' : ''} onClick={() => setEvolutionView('progress')}>Progreso</button>
             <button className={evolutionView === 'history' ? 'active' : ''} onClick={() => setEvolutionView('history')}>Historial</button>
+            <button className={evolutionView === 'library' ? 'active' : ''} onClick={() => setEvolutionView('library')}>Ejercicios</button>
           </div>
-          {evolutionView === 'progress' ? <Progress /> : <HistoryTab />}
+          {evolutionView === 'progress' ? <Progress /> : evolutionView === 'history' ? <HistoryTab /> : <ExerciseLibrary />}
         </>}
         {tab === 'gym' && <Gym />}
         {tab === 'settings' && <SettingsTab />}

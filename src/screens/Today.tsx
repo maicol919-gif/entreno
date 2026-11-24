@@ -13,6 +13,8 @@ import { cardioPhase, levelMinutes, type LegContext } from '../lib/treadmill'
 import { LONG_REST_SEC, TIME_OPTIONS, planToTime } from '../lib/timeBudget'
 import { useRest } from '../rest'
 import { useKeepAwake } from '../lib/keepAwake'
+import { loadPast, fmtSets } from '../lib/history'
+import { totalLoad } from '../lib/progression'
 
 interface CycleSummary {
   sessions: number
@@ -521,6 +523,7 @@ export default function Today() {
             <span className="eyebrow">ENTRENO DE HOY</span>
             <h3>¡Día completado!</h3>
             <p className="workout-complete-stats">{day?.name ?? 'Sesión de hoy'} · {doneTotal} series{cardioMin > 0 ? ` · ${Math.round(cardioMin)} min de cardio` : ''}</p>
+            <WorkoutReview sessionId={session.id} exercises={exercises} />
             <p className="muted">Tu entrenamiento está guardado. Reabre la sesión solo si quieres revisar o editar los ejercicios.</p>
             <button className="primary" onClick={reopen}>Reabrir entrenamiento</button>
           </div>
@@ -685,4 +688,63 @@ export default function Today() {
       )}
     </div>
   )
+}
+
+interface WorkoutSetSummary {
+  exerciseId: string
+  name: string
+  sets: { reps: number | null; load_kg: number | null; rir: number | null; is_warmup: boolean }[]
+  highlight: string | null
+}
+
+function WorkoutReview({ sessionId, exercises }: { sessionId: string; exercises: Exercise[] }) {
+  const [rows, setRows] = useState<WorkoutSetSummary[] | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      const { data, error } = await supabase.from('sets').select('exercise_id,reps,load_kg,rir,is_warmup').eq('session_id', sessionId).eq('done', true).order('set_number')
+      if (error || !data) { if (!cancelled) setRows([]); return }
+      const grouped = new Map<string, WorkoutSetSummary['sets']>()
+      for (const set of data) grouped.set(set.exercise_id, [...(grouped.get(set.exercise_id) ?? []), { reps: set.reps, load_kg: set.load_kg, rir: set.rir, is_warmup: !!set.is_warmup }])
+      const result = await Promise.all([...grouped].map(async ([exerciseId, sets]) => {
+        const ex = exercises.find((item) => item.id === exerciseId)
+        if (!ex) return null
+        const work = sets.filter((set) => !set.is_warmup)
+        const prior = await loadPast(exerciseId, sessionId).catch(() => [])
+        let highlight: string | null = null
+        if (work.length && prior.length === 0) highlight = 'Primer registro guardado de este ejercicio.'
+        else if (work.length && prior.length > 0) {
+          const loadOf = (set: { load_kg: number | null }) => totalLoad(set.load_kg, ex.load_type, ex.bar_kg)
+          const currentLoads = work.map(loadOf).filter((n): n is number => n != null)
+          const oldLoads = prior.flatMap((session) => session.sets.map(loadOf)).filter((n): n is number => n != null)
+          if (currentLoads.length && oldLoads.length) {
+            const currentTop = ex.load_type === 'assistance' ? Math.min(...currentLoads) : Math.max(...currentLoads)
+            const oldTop = ex.load_type === 'assistance' ? Math.min(...oldLoads) : Math.max(...oldLoads)
+            const improved = ex.load_type === 'assistance' ? currentTop < oldTop : currentTop > oldTop
+            if (improved) highlight = `Nueva mejor marca de carga: ${currentTop} kg${ex.load_type === 'assistance' ? ' de asistencia' : ''}.`
+            else {
+              const sameTop = (a: number, b: number) => Math.abs(a - b) < 0.001
+              const currentReps = Math.max(...work.filter((s) => loadOf(s) != null && sameTop(loadOf(s)!, currentTop)).map((s) => s.reps ?? 0))
+              const oldReps = Math.max(...prior.flatMap((s) => s.sets.filter((set) => loadOf(set) != null && sameTop(loadOf(set)!, currentTop)).map((set) => set.reps ?? 0)), 0)
+              if (currentReps > oldReps && oldReps > 0) highlight = `Más repeticiones con ${currentTop} kg: ${currentReps} (antes ${oldReps}).`
+            }
+          }
+        }
+        return { exerciseId, name: ex.name, sets, highlight }
+      }))
+      if (!cancelled) setRows(result.filter((x): x is WorkoutSetSummary => x != null))
+    })()
+    return () => { cancelled = true }
+  }, [sessionId, exercises])
+
+  if (rows === null) return <p className="muted">Preparando el resumen de tus series…</p>
+  if (!rows.length) return null
+  const records = rows.filter((row) => row.highlight)
+  return <div className="workout-review">
+    <div className="workout-review-top"><strong>Rendimiento de hoy</strong><span>{rows.reduce((n, row) => n + row.sets.filter((set) => !set.is_warmup).length, 0)} series efectivas</span></div>
+    {records.length > 0 ? <div className="workout-review-records">{records.map((row) => <p key={row.exerciseId}><span aria-hidden="true">↗</span> <strong>{row.name}:</strong> {row.highlight}</p>)}</div> : <p className="muted workout-review-encouragement">Buen trabajo registrando el entreno. Cada sesión suma datos para ajustar tu progresión.</p>}
+    <details className="workout-review-details"><summary>Ver series por ejercicio</summary>
+      {rows.map((row) => <div className="workout-review-exercise" key={row.exerciseId}><strong>{row.name}</strong><span>{fmtSets(row.sets.filter((set) => !set.is_warmup).map((set, i) => ({ ...set, set_number: i + 1 }))) || 'Sin series efectivas registradas'}</span>{row.highlight && <small>{row.highlight}</small>}</div>)}
+    </details>
+  </div>
 }
