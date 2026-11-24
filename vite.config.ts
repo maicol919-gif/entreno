@@ -30,6 +30,11 @@ export default defineConfig({
     },
     VitePWA({
       registerType: 'prompt',
+      workbox: {
+        // La guía es un documento HTML independiente: sin esta exclusión, la navegación
+        // de la PWA puede responder index.html de la app en vez del archivo de la demo.
+        navigateFallbackDenylist: [/^\/entreno\/demos\//],
+      },
       manifest: {
         name: 'Entreno',
         short_name: 'Entreno',

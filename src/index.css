@@ -150,6 +150,42 @@ select.bad { border-color: var(--bad); }
 .cardio-kind-legend .kind-easy { background:#8da99c; }
 .cardio-kind-legend .kind-other { background:#bc8cf2; }
 @media(max-width:400px) { .evolution-kpis { gap:5px; } .evolution-kpis > div { padding:10px 7px; } .evolution-kpis strong { font-size:1.15rem; } .evolution-muscle-row { grid-template-columns:72px minmax(30px,1fr) 68px 15px; gap:6px; } .evolution-muscle-detail { padding-left:78px; } .cardio-chart { gap:2px; } .cardio-chart-bar small { font-size:.57rem; } }
+.restbar { left:50%; right:auto; bottom:calc(86px + env(safe-area-inset-bottom)); width:min(520px,calc(100% - 24px)); border:1px solid rgba(255,255,255,.18); border-radius:16px; transform:translateX(-50%); z-index:40; }
+body:has(.restbar) main { padding-bottom:calc(230px + env(safe-area-inset-bottom)); }
+.exercise-context-card { overflow:hidden; }
+.history-context { border-color:rgba(116,181,244,.34); background:linear-gradient(145deg,rgba(34,51,67,.76),rgba(18,26,31,.98)); }
+.context-tag { display:block; margin-bottom:5px; color:#8bc8f4; font-size:.65rem; font-weight:850; letter-spacing:.14em; }
+.history-context h3,.warmup-context h3,.exercise-goal-card h3 { margin:0 0 7px; }
+.previous-set-list { display:grid; grid-template-columns:repeat(auto-fit,minmax(128px,1fr)); gap:7px; margin-top:10px; }
+.previous-set-pill { display:grid; grid-template-columns:auto 1fr; gap:2px 7px; align-items:center; padding:9px 10px; border:1px solid rgba(139,200,244,.18); border-radius:12px; background:rgba(5,12,18,.28); }
+.previous-set-pill b { grid-row:span 2; color:#8bc8f4; font-size:.68rem; }
+.previous-set-pill strong { font-size:.84rem; }
+.previous-set-pill span { color:#acb9c4; font-size:.72rem; }
+.warmup-context { border-color:rgba(241,190,104,.34); background:linear-gradient(145deg,rgba(57,43,28,.65),rgba(22,24,25,.98)); }
+.warmup-heading { display:flex; align-items:center; gap:11px; }
+.warmup-heading > span { display:grid; width:34px; height:34px; place-items:center; border-radius:11px; background:rgba(241,190,104,.15); color:#ffd185; font-weight:900; }
+.warmup-context .context-tag { color:#ffd185; }
+.warmup-lead { margin:5px 0 7px; color:#d6c6ad; font-size:.84rem; }
+.warmup-context details summary { width:fit-content; color:#ffd185; cursor:pointer; font-size:.82rem; font-weight:750; }
+.warmup-context details p { margin:9px 0 0; color:#e5e1d9; font-size:.88rem; line-height:1.5; }
+.exercise-goal-card { border-color:rgba(213,255,72,.46)!important; background:radial-gradient(ellipse at 100% 0,rgba(213,255,72,.13),transparent 55%),linear-gradient(145deg,#20291c,#151c19)!important; }
+.exercise-goal-card .context-tag { color:var(--accent); }
+.exercise-goal-card > p:first-of-type { line-height:1.5; }
+.target-chips { display:grid; grid-template-columns:repeat(auto-fit,minmax(86px,1fr)); gap:7px; margin:12px 0; }
+.target-chip { display:grid; justify-items:center; gap:3px; padding:10px 5px; border:1px solid rgba(213,255,72,.25); border-radius:13px; background:rgba(213,255,72,.07); }
+.target-chip > small { color:#aabd86; font-size:.64rem; font-weight:800; }
+.target-chip strong { font-size:1rem; }
+.target-chip strong small,.target-chip b small { color:var(--muted); font-size:.68rem; font-weight:500; }
+.target-chip b { color:var(--accent); font-size:.84rem; }
+.goal-apply { width:100%; background:rgba(213,255,72,.1); border-color:rgba(213,255,72,.3); color:var(--accent); font-size:.86rem; font-weight:750; }
+.exercise-note-card { border-color:rgba(188,140,242,.28); background:linear-gradient(145deg,rgba(44,34,55,.54),rgba(18,23,27,.98)); }
+.exercise-note-card h3 { margin-bottom:5px; }
+.exercise-note-card textarea { margin-top:8px; min-height:94px; line-height:1.45; }
+@media(max-width:600px) {
+  .restbar { bottom:calc(78px + env(safe-area-inset-bottom)); }
+  body:has(.restbar) main { padding-bottom:calc(235px + env(safe-area-inset-bottom)); }
+  body:has(.restbar):has(input:focus) main, body:has(.restbar):has(textarea:focus) main, body:has(.restbar):has(select:focus) main { padding-bottom:calc(310px + env(safe-area-inset-bottom)); }
+}
 .guide ol, .guide ul { margin: 4px 0 8px; padding-left: 20px; }
 .guide li { margin: 2px 0; }
 .bar { display: grid; grid-template-columns: 96px 1fr 70px; gap: 8px; align-items: center; margin: 6px 0; font-size: .9rem; }

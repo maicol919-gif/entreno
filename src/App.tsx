@@ -10,7 +10,7 @@ import Gym from './screens/Gym'
 import SettingsTab from './screens/Settings'
 import Progress from './screens/Progress'
 import ExerciseLibrary from './screens/ExerciseLibrary'
-import { RestProvider } from './rest'
+import { RestBar, RestProvider } from './rest'
 import UpdateBanner from './UpdateBanner'
 import PasswordRecovery from './screens/PasswordRecovery'
 
@@ -62,6 +62,7 @@ export default function App() {
     <DataProvider>
       <RestProvider>
       <UpdateBanner />
+      <RestBar />
       <main>
         <header className="app-header">
           <a className="brand" href="#inicio" onClick={(event) => { event.preventDefault(); setTab('today') }} aria-label="Entreno, ir a Hoy">

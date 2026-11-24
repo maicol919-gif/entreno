@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 const KEY = 'entreno.rest.endsAt'
 
@@ -120,7 +121,7 @@ export function RestBar() {
   if (remaining === 0 && !finished) return null
   const mm = Math.floor(remaining / 60)
   const ss = String(remaining % 60).padStart(2, '0')
-  return (
+  return createPortal((
     <div className={`restbar ${finished ? 'done' : ''}`} role="timer" aria-live="off">
       {finished ? (
         <>
@@ -136,5 +137,5 @@ export function RestBar() {
         </>
       )}
     </div>
-  )
+  ), document.body)
 }

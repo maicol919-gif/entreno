@@ -1,5 +1,12 @@
 # Historial de versiones
 
+## 3.29 · 2026-11-24
+- El descanso permanece fijo en la parte inferior de la pantalla, por encima de la navegación y separado del contenido editable.
+- Corrige la carga de la animación del jalón dentro de la PWA, evitando que el fallback de navegación abra la pantalla Hoy.
+- Permite editar cargas decimales sin que el punto/coma desaparezca mientras se escribe.
+- Mejora la jerarquía visual entre el registro anterior, la aproximación y el objetivo de hoy; la aproximación se despliega solo al pedir sus cargas.
+- Simplifica la nota del ejercicio a un campo libre; conserva las categorías históricas internamente.
+
 ## 3.28 · 2026-11-24
 - Evolución permite comparar ventanas de 7, 30 y 90 días, con días entrenados, series efectivas y promedio semanal.
 - Las barras de volumen muscular se pueden desplegar para ver qué ejercicios las componen; la comparación usa un promedio semanal del periodo elegido.

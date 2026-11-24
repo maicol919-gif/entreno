@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { RestBar, useRest } from '../rest'
+import { useRest } from '../rest'
 import { supabase } from '../lib/supabase'
 import { fmtDate, fmtSets, loadPast } from '../lib/history'
 import { suggest, type Suggestion } from '../lib/progression'
@@ -62,6 +62,7 @@ const STAR_TEXT = ['No me gustó nada', 'Casi no me gustó', 'Normal', 'Me gust�
 export default function ExerciseView({ exercise, sessionId, rx, restSeconds, warmup = 0, onBack, nextName, onNext, flag, alts, onReplace, onMissing }: Props) {
   const [missingAlts, setMissingAlts] = useState<Exercise[] | null>(null)
   const [sets, setSets] = useState<SetRow[] | null>(null)
+  const [loadDrafts, setLoadDrafts] = useState<Record<string, string>>({})
   const [past, setPast] = useState<PastSession[]>([])
   const [sugg, setSugg] = useState<Suggestion | null>(null)
   const [note, setNote] = useState('')
@@ -162,6 +163,26 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
     if (persist) void save(next.find((r) => r.id === id)!)
   }
 
+  function parsedLoad(value: string): number | null | undefined {
+    const normalized = value.trim().replace(',', '.')
+    if (normalized === '') return null
+    if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)) return undefined
+    const parsed = Number(normalized)
+    return Number.isFinite(parsed) ? parsed : undefined
+  }
+
+  function commitLoad(id: string) {
+    const raw = loadDrafts[id]
+    if (raw === undefined) return
+    const value = parsedLoad(raw)
+    const row = setsRef.current?.find((x) => x.id === id)
+    if (value !== undefined && row) {
+      patch(id, { load_kg: value })
+      void save({ ...row, load_kg: value })
+    }
+    setLoadDrafts((cur) => { const next = { ...cur }; delete next[id]; return next })
+  }
+
   function toggleDone(row: SetRow) {
     if (!row.done && row.rir == null) {
       setNeedRir(row.id)
@@ -235,6 +256,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
 
   function useSuggestion() {
     if (!sugg || !sets) return
+    setLoadDrafts({})
     sets.forEach((r, i) => {
       const t = sugg.targets[Math.min(i, sugg.targets.length - 1)]
       if (!r.done) patch(r.id, { reps: t.reps, load_kg: t.load_kg }, true)
@@ -246,14 +268,13 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
 
   if (showAnimation && hasInteractiveDemo) return (
     <div className="screen exercise-demo-screen">
-      <RestBar />
       <button className="link back" onClick={() => setShowAnimation(false)}>← Volver al jalón al pecho</button>
       <span className="eyebrow">GUÍA VISUAL · AGARRE NEUTRO</span>
       <iframe
         className="exercise-demo-frame"
-        src={`${import.meta.env.BASE_URL}demos/jalon-al-pecho/?embedded=1`}
+        src={`${import.meta.env.BASE_URL}demos/jalon-al-pecho/index.html?embedded=1`}
         title="Animación interactiva del jalón al pecho con agarre neutro"
-        loading="lazy"
+        loading="eager"
         allow="fullscreen"
       />
     </div>
@@ -261,7 +282,6 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
 
   return (
     <div className="screen">
-      <RestBar />
       <button className="link back" onClick={onBack}>← Sesión</button>
       <h2>{exercise.name}</h2>
       <p className="muted">
@@ -352,12 +372,13 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
         {fb === 'sent' && <p className="muted">Gracias: lo reviso y lo corrijo.</p>}
       </section>
 
-      <section className="card last">
+      <section className="card exercise-context-card history-context">
+        <span className="context-tag">TU REGISTRO ANTERIOR</span>
         <h3>Última vez</h3>
         {last ? (
           <>
             <p className="muted">{fmtDate(last.date)}</p>
-            <p>{fmtSets(last.sets)}</p>
+            <div className="previous-set-list">{last.sets.map((set, index) => <span className="previous-set-pill" key={`${set.set_number}-${index}`}><b>S{index + 1}</b><strong>{set.reps ?? '–'} reps</strong><span>{set.load_kg ?? '–'} kg{set.rir != null ? ` · RIR ${set.rir >= 3 ? '3+' : set.rir}` : ''}</span></span>)}</div>
             {last.note && <p className="note">“{last.note}”</p>}
           </>
         ) : (
@@ -366,9 +387,12 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
       </section>
 
       {warmup > 0 && (
-        <section className="card">
-          <h3>Aproximación</h3>
-          <p>
+        <section className="card warmup-context">
+          <div className="warmup-heading"><span aria-hidden="true">↗</span><div><span className="context-tag">PREPARA EL MOVIMIENTO</span><h3>Aproximación</h3></div></div>
+          <p className="warmup-lead">{warmup} serie{warmup === 1 ? '' : 's'} ligera{warmup === 1 ? '' : 's'} antes del trabajo efectivo.</p>
+          <details>
+            <summary>Ver propuesta de cargas</summary>
+            <p>
             {(() => {
               const w = sugg?.targets?.[0]?.load_kg
               const inc = exercise.min_increment_kg || 2.5
@@ -376,18 +400,20 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
               const parts = warmup >= 2 ? [['8', r(0.5)], ['5', r(0.75)]] : [['6', r(0.6)]]
               return 'Antes de la serie 1: ' + parts.map(([reps, kg]) => '1 × ' + reps + (kg ? ' con ' + kg + ' kg' : ' ligera')).join(' y ') + ', lejos del fallo. No se registran.'
             })()}
-          </p>
+            </p>
+          </details>
         </section>
       )}
 
       {sugg && (
-        <section className={`card sugg ${sugg.kind}`}>
+        <section className={`card sugg exercise-goal-card ${sugg.kind}`}>
+          <span className="context-tag">TU PLAN DE TRABAJO</span>
           <h3>Objetivo de hoy</h3>
           <p>{sugg.message}</p>
           {sugg.kind !== 'new' && (
-            <p className="targets">{sugg.targets.map((t) => `${t.reps}×${t.load_kg ?? '–'}`).join(' · ')}</p>
+            <div className="target-chips" aria-label="Series objetivo">{sugg.targets.map((t, i) => <span className="target-chip" key={i}><small>S{i + 1}</small><strong>{t.reps} <small>reps</small></strong><b>{t.load_kg ?? '–'} <small>kg</small></b></span>)}</div>
           )}
-          {sugg.kind !== 'new' && <button onClick={useSuggestion}>Usar como base</button>}
+          {sugg.kind !== 'new' && <button className="goal-apply" onClick={useSuggestion}>Aplicar a series sin marcar</button>}
           {sugg.kind === 'new' && ref && (
             <p className="muted">
               Referencia: en {ref.name} hiciste {fmtSets(ref.last.sets)} ({fmtDate(ref.last.date)}). Cada máquina carga distinto: empieza un 20-30 % más ligero con 3 repeticiones en reserva y ajusta en la primera serie.
@@ -403,7 +429,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
           <div className={`set ${r.done ? 'done' : ''}`} key={r.id}>
             <span>{r.set_number}</span>
             <input inputMode="numeric" value={r.reps ?? ''} onChange={(e) => patch(r.id, { reps: e.target.value === '' ? null : Number(e.target.value) })} onBlur={() => save(setsRef.current!.find((x) => x.id === r.id)!)} />
-            <input inputMode="decimal" value={r.load_kg ?? ''} onChange={(e) => patch(r.id, { load_kg: e.target.value === '' ? null : Number(e.target.value.replace(',', '.')) })} onBlur={() => save(setsRef.current!.find((x) => x.id === r.id)!)} />
+            <input aria-label={`Carga de la serie ${r.set_number}`} type="text" inputMode="decimal" value={loadDrafts[r.id] ?? (r.load_kg == null ? '' : String(r.load_kg))} onChange={(e) => { const raw = e.target.value; setLoadDrafts((cur) => ({ ...cur, [r.id]: raw })); const value = parsedLoad(raw); if (value !== undefined) patch(r.id, { load_kg: value }) }} onBlur={() => commitLoad(r.id)} />
             <select className={needRir === r.id ? 'bad' : ''} value={r.rir == null ? '' : Math.min(r.rir, 3)} onChange={(e) => patch(r.id, { rir: e.target.value === '' ? null : Number(e.target.value) }, true)}>
               <option value="">RIR</option>
               {[0, 1, 2, 3].map((n) => <option key={n} value={n}>{n === 3 ? '3+' : n}</option>)}
@@ -439,13 +465,10 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
       </button>
       {!allDone && sets && sets.length > 0 && <p className="muted center-text">Aún tienes series sin marcar.</p>}
 
-      <section className="card">
+      <section className="card exercise-note-card">
         <h3>Nota de hoy</h3>
-        {noteTypeAvailable && <label>Tipo de nota<select value={noteType} onChange={(e) => setNoteType(e.target.value)} onBlur={saveNote}>
-          <option value="ajuste_equipo">Ajuste del equipo</option><option value="tecnica">Técnica</option><option value="preferencia">Preferencia</option><option value="molestia">Molestia</option><option value="otra">Otra</option>
-        </select></label>}
-        {noteTypeAvailable === false && <p className="muted">Las notas se guardan con el esquema actual; las categorías estarán disponibles al aplicar la migración de datos.</p>}
-        <textarea rows={3} placeholder="Ej.: inclinación 3, molestia hombro, RIR por serie…" value={note} onChange={(e) => setNote(e.target.value)} onBlur={saveNote} />
+        <p className="muted">Un recordatorio breve para la próxima vez; se guarda automáticamente al salir del campo.</p>
+        <textarea rows={3} placeholder="Ej.: asiento 3, agarre neutro o cómo se sintió el hombro…" value={note} onChange={(e) => setNote(e.target.value)} onBlur={saveNote} />
       </section>
 
       {past.length > 1 && (
