@@ -1,5 +1,9 @@
 # Historial de versiones
 
+## 3.25 · 2026-11-24
+- La pantalla Hoy muestra la fecha del último entrenamiento con series registradas, los días transcurridos y si esa sesión quedó incompleta.
+- La fecha aporta contexto; no modifica automáticamente cargas, ciclo ni progresión.
+
 ## 3.24 · 2026-11-24
 - Simplifica la elección de cardio con dos objetivos claros: resistencia para fútbol o caminata inclinada personal.
 - La caminata personal también pregunta cómo están las piernas; con piernas cargadas aplica una versión suave (máximo 5 km/h y 2 % de inclinación).

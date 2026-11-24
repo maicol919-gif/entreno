@@ -96,6 +96,7 @@ export default function Today() {
   const [openItem, setOpenItem] = useState<RoutineItem | null>(null)
   const [pendingSoreness, setPendingSoreness] = useState<Session | null>(null)
   const [lastSoreness, setLastSoreness] = useState<number | null>(null)
+  const [lastWorkout, setLastWorkout] = useState<{ date: string; name: string; status: Session['status'] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [openCardio, setOpenCardio] = useState(false)
   const [cardioMin, setCardioMin] = useState(0)
@@ -113,6 +114,23 @@ export default function Today() {
   const exById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
 
   const refresh = useCallback(async () => {
+    // Cualquier sesión con series realmente marcadas sirve para mostrar la última fecha entrenada,
+    // incluso si se guardó incompleta. No se usan sesiones vacías ni sesiones aún en curso.
+    const { data: lastRows } = await supabase
+      .from('sessions')
+      .select('date,day_id,status,started_at,sets!inner(id,done)')
+      .in('status', ['done', 'incomplete'])
+      .eq('sets.done', true)
+      .order('date', { ascending: false })
+      .order('started_at', { ascending: false })
+      .limit(1)
+    const lastRow = lastRows?.[0] as { date: string; day_id: string | null; status: Session['status'] } | undefined
+    setLastWorkout(lastRow ? {
+      date: lastRow.date,
+      name: days.find((d) => d.id === lastRow.day_id)?.name ?? 'Entrenamiento',
+      status: lastRow.status,
+    } : null)
+
     const { data: s } = await supabase.from('sessions').select('*').eq('date', today).order('started_at', { ascending: false })
     const todays = (s ?? []) as Session[]
     // puede haber varias sesiones hoy (por ejemplo dos días distintos): la en curso, si no la del día seleccionado, si no la última
@@ -372,6 +390,10 @@ export default function Today() {
   })()
   const cycleDoneCount = Math.min(5, Object.keys(trackerDays).length)
   const dateLabel = new Intl.DateTimeFormat('es-ES', { weekday: 'long', day: 'numeric', month: 'long' }).format(now)
+  const lastWorkoutDays = lastWorkout
+    ? Math.max(0, Math.floor((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(Number(lastWorkout.date.slice(0, 4)), Number(lastWorkout.date.slice(5, 7)) - 1, Number(lastWorkout.date.slice(8, 10))) ) / 86400000))
+    : null
+  const lastWorkoutDate = lastWorkout ? new Intl.DateTimeFormat('es-ES', { day: 'numeric', month: 'short' }).format(new Date(`${lastWorkout.date}T00:00:00`)) : ''
   const shortDate = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 
   const missing = activeItems
@@ -455,6 +477,15 @@ export default function Today() {
         <div><span>VOLUMEN DE HOY</span><strong>{totalSets}<small> series</small></strong></div>
         <div><span>TIEMPO ESTIMADO</span><strong>{timePlan.totalMin}<small> min</small></strong></div>
       </div>
+
+      {lastWorkout && lastWorkoutDays != null && (
+        <section className="card last" aria-label="Último entrenamiento registrado">
+          <span className="eyebrow">ÚLTIMO ENTRENO REGISTRADO</span>
+          <h3>{lastWorkout.name}</h3>
+          <p>{lastWorkoutDate} · {lastWorkoutDays === 0 ? 'hoy' : lastWorkoutDays === 1 ? 'ayer' : `hace ${lastWorkoutDays} días`}{lastWorkout.status === 'incomplete' ? ' · guardado incompleto' : ''}</p>
+          <p className="muted">La fecha sirve como contexto de recuperación; la carga se ajusta según tu rendimiento y cómo te encuentras.</p>
+        </section>
+      )}
 
       {!session && completed >= 1 && Object.keys(cycleDays).length === 0 && (
         <section className="card last">
