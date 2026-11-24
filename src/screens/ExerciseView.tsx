@@ -73,6 +73,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
   const [pending, setPending] = useState(0)
   const [showGuide, setShowGuide] = useState(false)
   const [showVideo, setShowVideo] = useState(false)
+  const [showAnimation, setShowAnimation] = useState(false)
   const [fb, setFb] = useState<'idle' | 'ask' | 'sent'>('idle')
   const [fbNote, setFbNote] = useState('')
   const { exercises: allExercises } = useData()
@@ -81,6 +82,7 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
   const [ref, setRef] = useState<{ name: string; last: PastSession } | null>(null)
   const videoId = VIDEOS[exercise.name]
   const guide = GUIDES[exercise.name]
+  const hasInteractiveDemo = exercise.name === 'Jalón al pecho'
   useEffect(() => {
     setsRef.current = sets
   }, [sets])
@@ -242,6 +244,21 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
   const last = past[0]
   const allDone = !!sets && sets.length > 0 && sets.every((r) => r.done)
 
+  if (showAnimation && hasInteractiveDemo) return (
+    <div className="screen exercise-demo-screen">
+      <RestBar />
+      <button className="link back" onClick={() => setShowAnimation(false)}>← Volver al jalón al pecho</button>
+      <span className="eyebrow">GUÍA VISUAL · AGARRE NEUTRO</span>
+      <iframe
+        className="exercise-demo-frame"
+        src={`${import.meta.env.BASE_URL}demos/jalon-al-pecho/?embedded=1`}
+        title="Animación interactiva del jalón al pecho con agarre neutro"
+        loading="lazy"
+        allow="fullscreen"
+      />
+    </div>
+  )
+
   return (
     <div className="screen">
       <RestBar />
@@ -255,6 +272,12 @@ export default function ExerciseView({ exercise, sessionId, rx, restSeconds, war
       {pending > 0 && <p className="err">Sin conexión: {pending} serie(s) pendientes de guardar. Se reintenta solo.</p>}
       {exercise.fixed_note && <p className="fixed">📌 {exercise.fixed_note}</p>}
       {last?.note && <section className="card warn"><h3>Tu recordatorio</h3><p className="note">{last.note}</p>{last.note_type === 'tecnica' && <p className="muted"><strong>Cómo hacerlo para mí:</strong> recordatorio personal; consulta también la guía general de técnica.</p>}</section>}
+      {hasInteractiveDemo && (
+        <section className="card exercise-demo-entry">
+          <div><span className="eyebrow">ANIMACIÓN INTERACTIVA</span><p className="muted">Recorrido completo con el mango neutro que elegiste.</p></div>
+          <button className="primary" onClick={() => setShowAnimation(true)}>▶ Ver cómo hacerlo</button>
+        </section>
+      )}
 
       {flag && (
         <section className="card warn">

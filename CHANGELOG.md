@@ -1,5 +1,8 @@
 # Historial de versiones
 
+## 3.26 · 2026-11-24
+- Integra la animación interactiva del jalón al pecho con agarre neutro en la pantalla del ejercicio, con retorno directo al registro de series.
+
 ## 3.25 · 2026-11-24
 - La pantalla Hoy muestra la fecha del último entrenamiento con series registradas, los días transcurridos y si esa sesión quedó incompleta.
 - La fecha aporta contexto; no modifica automáticamente cargas, ciclo ni progresión.
