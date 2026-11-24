@@ -9,6 +9,7 @@ interface Row {
   exercise_id: string
   reps: number | null
   load_kg: number | null
+  rir: number | null
   session_id: string
   sessions: { date: string; status: string } | { date: string; status: string }[]
 }
@@ -29,25 +30,12 @@ const TARGETS: Record<string, [number, number]> = {
   Abdomen: [6, 12],
 }
 
-interface Trend {
-  ex: Exercise
-  first: number
-  last: number
-  sessions: number
-  status: 'up' | 'flat' | 'stalled'
-}
-
-/** Ventana móvil de 7 días (no dependes de un calendario fijo). */
-function sevenDaysAgo(): string {
-  return toISODate(new Date(Date.now() - 6 * 86400000))
-}
-
 async function loadAllSets(): Promise<Row[]> {
   const out: Row[] = []
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from('sets')
-      .select('exercise_id,reps,load_kg,session_id,sessions!inner(date,status)')
+      .select('exercise_id,reps,load_kg,rir,session_id,sessions!inner(date,status)')
       .eq('done', true)
       .eq('is_warmup', false)
       .eq('sessions.status', 'done')
@@ -64,6 +52,8 @@ export default function Progress() {
   const { exercises } = useData()
   const [rows, setRows] = useState<Row[] | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const [period, setPeriod] = useState<7 | 30 | 90>(30)
+  const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null)
 
   useEffect(() => {
     loadAllSets().then(setRows).catch((e) => setErr(String(e.message ?? e)))
@@ -71,55 +61,21 @@ export default function Progress() {
 
   const exById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises])
   const dateOf = (r: Row) => (Array.isArray(r.sessions) ? r.sessions[0].date : r.sessions.date)
+  const cutoff = toISODate(new Date(Date.now() - (period - 1) * 86400000))
+  const visibleRows = useMemo(() => (rows ?? []).filter((r) => dateOf(r) >= cutoff), [rows, cutoff])
+  const trainingDays = new Set(visibleRows.map(dateOf)).size
+  const doneSets = visibleRows.length
 
   const weekly = useMemo(() => {
-    const monday = sevenDaysAgo()
     const counts = new Map<string, number>()
-    for (const r of rows ?? []) {
-      if (dateOf(r) < monday) continue
+    for (const r of visibleRows) {
       const m = exById.get(r.exercise_id)?.muscle_primary
       if (m) counts.set(m, (counts.get(m) ?? 0) + 1)
     }
     return counts
-  }, [rows, exById])
-
-  const trends = useMemo(() => {
-    const per = new Map<string, Map<string, { date: string; top: number | null; vol: number }>>()
-    for (const r of rows ?? []) {
-      const ex = exById.get(r.exercise_id)
-      if (!ex) continue
-      const load = totalLoad(r.load_kg, ex.load_type, ex.bar_kg)
-      const bySession = per.get(ex.id) ?? new Map()
-      const cur = bySession.get(r.session_id) ?? { date: dateOf(r), top: null, vol: 0 }
-      if (load != null) {
-        cur.top = cur.top == null ? load : ex.load_type === 'assistance' ? Math.min(cur.top, load) : Math.max(cur.top, load)
-        cur.vol += (r.reps ?? 0) * (ex.load_type === 'assistance' ? 0 : load)
-      }
-      bySession.set(r.session_id, cur)
-      per.set(ex.id, bySession)
-    }
-    const out: Trend[] = []
-    for (const [id, bySession] of per) {
-      const ex = exById.get(id)!
-      const list = [...bySession.values()].filter((s) => s.top != null).sort((a, b) => a.date.localeCompare(b.date))
-      if (list.length < 2) continue
-      const better = (a: number, b: number) => (ex.load_type === 'assistance' ? a < b : a > b)
-      const first = list[0].top!
-      const last = list[list.length - 1].top!
-      const recent = list.slice(-3)
-      const improvedRecently = recent.some((s, i) => i > 0 && (better(s.top!, recent[0].top!) || (s.top === recent[0].top && s.vol > recent[0].vol * 1.03)))
-      let status: Trend['status'] = 'flat'
-      if (better(last, first)) status = 'up'
-      if (list.length >= 3 && !improvedRecently) status = 'stalled'
-      out.push({ ex, first, last, sessions: list.length, status })
-    }
-    return out
-  }, [rows, exById])
+  }, [visibleRows, exById])
 
   if (err) return <div className="screen"><p className="err">{err}</p></div>
-
-  const up = trends.filter((t) => t.status === 'up').sort((a, b) => a.ex.name.localeCompare(b.ex.name))
-  const stalled = trends.filter((t) => t.status === 'stalled').sort((a, b) => a.ex.name.localeCompare(b.ex.name))
 
   return (
     <div className="screen">
@@ -128,48 +84,99 @@ export default function Progress() {
 
       {rows && (
         <>
+          <section className="card evolution-range-card">
+            <div><span className="eyebrow">TU PERIODO</span><h3>Lee tu progreso con contexto</h3></div>
+            <div className="subtabs evolution-range" aria-label="Periodo de análisis">
+              {([7, 30, 90] as const).map((d) => <button key={d} className={period === d ? 'active' : ''} onClick={() => setPeriod(d)}>{d} días</button>)}
+            </div>
+            <div className="evolution-kpis">
+              <div><strong>{trainingDays}</strong><span>días entrenados</span></div>
+              <div><strong>{doneSets}</strong><span>series efectivas</span></div>
+              <div><strong>{(Math.round((doneSets / period) * 7 * 10) / 10).toFixed(1)}</strong><span>series / semana</span></div>
+            </div>
+          </section>
           <section className="card">
-            <h3>Series de los últimos 7 días por músculo</h3>
-            <p className="muted">Objetivo semanal entre paréntesis. Verde = dentro del rango.</p>
+            <h3>Volumen por grupo muscular</h3>
+            <p className="muted">Promedio semanal durante estos {period} días, comparado con tu rango de referencia. Toca un músculo para ver qué ejercicios aportan series.</p>
             {Object.entries(TARGETS).map(([m, [lo, hi]]) => {
-              const n = weekly.get(m) ?? 0
+              const n = Math.round(((weekly.get(m) ?? 0) * 7 / period) * 10) / 10
               const cls = n >= lo && n <= hi ? 'ok' : n > hi ? 'warn-t' : ''
+              const selected = visibleRows.filter((r) => exById.get(r.exercise_id)?.muscle_primary === m)
+              const expanded = selectedMuscle === m
               return (
-                <div className="bar" key={m}>
-                  <span>{m}</span>
-                  <div className="track"><div className={`fill ${cls}`} style={{ width: `${Math.min(100, (n / hi) * 100)}%` }} /></div>
-                  <span className={cls}>{n} <small>({lo}-{hi})</small></span>
+                <div className="evolution-muscle" key={m}>
+                  <button className="evolution-muscle-row" aria-expanded={expanded} onClick={() => setSelectedMuscle(expanded ? null : m)}>
+                    <span>{m}</span><span className="evolution-muscle-track"><i className={cls} style={{ width: `${Math.min(100, (n / hi) * 100)}%` }} /></span>
+                    <strong className={cls}>{n}<small> / sem</small></strong><span className="count">{expanded ? '−' : '+'}</span>
+                  </button>
+                  {expanded && <div className="evolution-muscle-detail">{[...new Set(selected.map((r) => r.exercise_id))].map((id) => <p key={id}><strong>{exById.get(id)?.name}</strong><span>{selected.filter((r) => r.exercise_id === id).length} series · {Math.round(selected.filter((r) => r.exercise_id === id).length * 7 / period * 10) / 10}/sem</span></p>)}{selected.length === 0 && <p className="muted">Sin series registradas en este periodo.</p>}</div>}
                 </div>
               )
             })}
           </section>
 
-          <section className="card">
-            <h3>Subiendo ({up.length})</h3>
-            {up.length === 0 && <p className="muted">Aún no hay suficientes sesiones.</p>}
-            {up.map((t) => (
-              <p key={t.ex.id}>
-                <strong>{t.ex.name}</strong> <span className="muted">{t.first} → {t.last} kg ({t.sessions} ses.)</span>
-              </p>
-            ))}
-          </section>
-
-          <section className="card">
-            <h3>Estancados ({stalled.length})</h3>
-            <p className="muted">Sin mejora de carga ni volumen en las últimas 3 sesiones: sube un escalón o varía el rango de reps.</p>
-            {stalled.map((t) => (
-              <p key={t.ex.id}>
-                <strong>{t.ex.name}</strong> <span className="muted">{t.last} kg ({t.sessions} ses.)</span>
-              </p>
-            ))}
-          </section>
+          <ExerciseProgress rows={visibleRows} exercises={exercises} dateOf={dateOf} />
         </>
       )}
 
-      <CardioWeek />
+      <CardioWeek days={period} />
       <BodyWeight />
     </div>
   )
+}
+
+function ExerciseProgress({ rows, exercises, dateOf }: { rows: Row[]; exercises: Exercise[]; dateOf: (r: Row) => string }) {
+  const logged = exercises.filter((ex) => rows.some((r) => r.exercise_id === ex.id)).sort((a, b) => a.name.localeCompare(b.name))
+  const [exerciseId, setExerciseId] = useState('')
+  const [metric, setMetric] = useState<'load' | 'reps' | 'rir'>('load')
+  const activeId = logged.some((e) => e.id === exerciseId) ? exerciseId : logged[0]?.id ?? ''
+  const ex = logged.find((e) => e.id === activeId)
+  const points = useMemo(() => {
+    if (!ex) return []
+    const by = new Map<string, Row[]>()
+    for (const r of rows.filter((x) => x.exercise_id === ex.id)) by.set(r.session_id, [...(by.get(r.session_id) ?? []), r])
+    return [...by.values()].map((sets) => {
+      const loads = sets.map((s) => totalLoad(s.load_kg, ex.load_type, ex.bar_kg)).filter((x): x is number => x != null)
+      const load = loads.length ? (ex.load_type === 'assistance' ? Math.min(...loads) : Math.max(...loads)) : null
+      const reps = sets.map((s) => s.reps).filter((x): x is number => x != null)
+      const rirs = sets.map((s) => s.rir).filter((x): x is number => x != null)
+      return { date: dateOf(sets[0]), value: metric === 'load' ? load : metric === 'reps' ? (reps.length ? Math.max(...reps) : null) : (rirs.length ? Math.round(rirs.reduce((a, b) => a + b, 0) / rirs.length * 10) / 10 : null) }
+    }).filter((p): p is { date: string; value: number } => p.value != null).sort((a, b) => a.date.localeCompare(b.date))
+  }, [rows, ex, metric, dateOf])
+  const unit = metric === 'load' ? (ex?.load_type === 'assistance' ? ' kg de asistencia' : ' kg') : metric === 'reps' ? ' reps en una serie' : ' RIR medio'
+  const direction = metric === 'rir' ? 'El RIR se muestra como contexto del esfuerzo; no se interpreta por sí solo como mejora.' : ex?.load_type === 'assistance' && metric === 'load' ? 'En asistencia, menos kg significa menos ayuda.' : 'Compara la misma variante y equipo a lo largo del tiempo.'
+  return <section className="card exercise-progress-card">
+    <div className="section-heading"><div><span className="eyebrow">TENDENCIA INDIVIDUAL</span><h3>Cómo evoluciona un ejercicio</h3></div></div>
+    <label>Ejercicio<select value={activeId} onChange={(e) => setExerciseId(e.target.value)}>{logged.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
+    <div className="subtabs history-metrics" aria-label="Métrica de ejercicio">
+      <button className={metric === 'load' ? 'active' : ''} onClick={() => setMetric('load')}>Carga</button>
+      <button className={metric === 'reps' ? 'active' : ''} onClick={() => setMetric('reps')}>Reps</button>
+      <button className={metric === 'rir' ? 'active' : ''} onClick={() => setMetric('rir')}>RIR</button>
+    </div>
+    {points.length > 0 ? <>
+      <ProgressLineChart points={points} unit={unit} />
+      <div className="progress-chart-insight"><strong>{points.length > 1 ? `${points.length} sesiones comparables` : 'Primer dato de este periodo'}</strong><span>{points.length > 1 ? `${points[0].value}${unit} → ${points[points.length - 1].value}${unit}` : `${points[0].value}${unit}`}</span></div>
+      <p className="muted">{direction}</p>
+    </> : <p className="muted">No hay registros de {metric === 'rir' ? 'RIR' : metric === 'load' ? 'carga' : 'repeticiones'} para este ejercicio en el periodo.</p>}
+    {logged.length === 0 && <p className="muted">Registra una sesión para empezar a ver la evolución por ejercicio.</p>}
+  </section>
+}
+
+function ProgressLineChart({ points, unit }: { points: { date: string; value: number }[]; unit: string }) {
+  const w = 340, h = 150, pad = 24
+  const values = points.map((p) => p.value), min = Math.min(...values), max = Math.max(...values)
+  const x = (i: number) => points.length <= 1 ? w / 2 : pad + i / (points.length - 1) * (w - pad * 2)
+  const y = (v: number) => h - pad - (v - min) / (max - min || 1) * (h - pad * 2)
+  const coords = points.map((p, i) => `${x(i)},${y(p.value)}`).join(' ')
+  const fmt = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
+  return <div className="progress-chart-wrap">
+    <svg viewBox={`0 0 ${w} ${h}`} className="progress-line-chart" role="img" aria-label="Evolución por sesión">
+      {[0, .5, 1].map((fraction) => <line key={fraction} x1={pad} x2={w - pad} y1={pad + fraction * (h - 2 * pad)} y2={pad + fraction * (h - 2 * pad)} className="chart-grid" />)}
+      {points.length > 1 && <polyline points={coords} className="chart-line" />}
+      {points.map((p, i) => <g key={`${p.date}-${i}`}><circle cx={x(i)} cy={y(p.value)} r="6" className="chart-point"><title>{fmt(p.date)}: {p.value}{unit}</title></circle><text x={x(i)} y={y(p.value) - 11} textAnchor="middle" className="chart-point-label">{p.value}</text></g>)}
+    </svg>
+    <div className="chart-date-row"><span>{fmt(points[0].date)}</span><span>{fmt(points[points.length - 1].date)}</span></div>
+  </div>
 }
 
 function BodyWeight() {
@@ -209,50 +216,85 @@ function BodyWeight() {
           {prev != null && <span className="muted"> ({cur - prev >= 0 ? '+' : ''}{(cur - prev).toFixed(2)} vs. semana anterior)</span>}
         </p>
       )}
+      {list.length > 1 && <ProgressLineChart points={list.slice().reverse().map((x) => ({ date: x.date, value: x.kg }))} unit=" kg" />}
       {list.slice(0, 7).map((x) => <p key={x.date} className="muted">{x.date}: {x.kg} kg</p>)}
     </section>
   )
 }
 
-function CardioWeek() {
-  const [hard, setHard] = useState(0)
-  const [med, setMed] = useState(0)
-  const [soft, setSoft] = useState(0)
-  const [alternative, setAlternative] = useState(0)
-  const [lastSpeech, setLastSpeech] = useState<string | null>(null)
+interface CardioRow { date: string; kind: string; minutes: number; speech_test: string | null; machine?: string | null; rpe?: number | null }
+
+function CardioWeek({ days }: { days: number }) {
+  const [rows, setRows] = useState<CardioRow[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(null)
+  const cutoff = toISODate(new Date(Date.now() - (days - 1) * 86400000))
   useEffect(() => {
     void supabase
       .from('cardio_logs')
-      .select('kind,minutes,speech_test,date')
-      .gte('date', sevenDaysAgo())
-      .order('date', { ascending: false })
-      .then(({ data }) => {
-        let h = 0
-        let m = 0
-        let sMin = 0
-        let altMin = 0
-        for (const r of data ?? []) {
-          if (r.kind === 'intervalos') h += 1
-          else if (r.kind === 'media') m += 1
-          else if (r.kind === 'recuperacion') sMin += Number(r.minutes)
-          else altMin += Number(r.minutes)
-        }
-        setHard(h)
-        setMed(m)
-        setSoft(sMin)
-        setAlternative(altMin)
-        setLastSpeech((data ?? []).find((r) => r.speech_test)?.speech_test ?? null)
+      .select('kind,minutes,speech_test,date,machine,rpe')
+      .gte('date', cutoff)
+      .order('date', { ascending: true })
+      .then(({ data, error: queryError }) => {
+        if (queryError) { setError(queryError.message); setRows([]); return }
+        setError(null)
+        setRows((data ?? []).map((r) => ({ ...r, minutes: Number(r.minutes ?? 0) })) as CardioRow[])
       })
-  }, [])
-  const label = lastSpeech === 'entera' ? 'entera' : lastSpeech === 'dos' ? 'partida en dos' : lastSpeech === 'mitad' ? 'no pasó de la mitad' : '—'
+  }, [cutoff])
+  const total = (rows ?? []).reduce((sum, r) => sum + r.minutes, 0)
+  const intervals = (rows ?? []).filter((r) => r.kind === 'intervalos' || r.kind === 'hiit').length
+  const moderate = (rows ?? []).filter((r) => r.kind === 'media' || r.kind === 'liss').length
+  const gentle = (rows ?? []).filter((r) => r.kind === 'recuperacion').length
+  const other = (rows ?? []).filter((r) => !['intervalos', 'hiit', 'media', 'liss', 'recuperacion'].includes(r.kind)).length
+  const grouped = new Map<string, CardioRow[]>()
+  for (const row of rows ?? []) {
+    let key = row.date
+    if (days > 7) {
+      const date = new Date(`${row.date}T00:00:00`)
+      date.setDate(date.getDate() - ((date.getDay() + 6) % 7))
+      key = toISODate(date)
+    }
+    grouped.set(key, [...(grouped.get(key) ?? []), row])
+  }
+  const buckets = [...grouped].map(([key, list]) => ({ key, list, minutes: list.reduce((sum, r) => sum + r.minutes, 0) }))
+  const activeBucket = buckets.find((b) => b.key === selected)
+  const latestSpeech = (rows ?? []).slice().reverse().find((r) => r.speech_test)?.speech_test
+  const speechLabel = latestSpeech === 'entera' ? 'frase completa' : latestSpeech === 'dos' ? 'frase en dos partes' : latestSpeech === 'mitad' ? 'no salió completa' : null
+  const maxMinutes = Math.max(1, ...buckets.map((b) => b.minutes))
   return (
     <section className="card">
-      <h3>Cardio de los últimos 7 días</h3>
-      <p>Dura: <strong className={hard >= 1 && hard <= 3 ? 'ok' : ''}>{hard}</strong> <span className="muted">(máx. 3, nunca días seguidos)</span></p>
-      <p>Media: <strong>{med}</strong></p>
-      <p>Suave: <strong>{Math.round(soft)} min</strong></p>
-      {alternative > 0 && <p>Alternativo / personalizado: <strong>{Math.round(alternative)} min</strong></p>}
-      <p className="muted">Último test de habla: {label}</p>
+      <span className="eyebrow">ACTIVIDAD AERÓBICA</span>
+      <h3>Tu cardio · últimos {days} días</h3>
+      {rows === null && <p className="muted">Cargando registros de cardio…</p>}
+      {error && <p className="err">No se pudieron cargar los registros: {error}</p>}
+      {rows && !error && rows.length === 0 && <div className="evolution-empty"><strong>Sin sesiones de cardio registradas en este periodo</strong><p>El cardio que guardes al terminar aparecerá aquí. Si lo hiciste fuera de la app, todavía no figura en el historial.</p></div>}
+      {rows && !error && rows.length > 0 && <>
+        <div className="evolution-kpis cardio-kpis">
+          <div><strong>{Math.round(total)}</strong><span>minutos en total</span></div>
+          <div><strong>{rows.length}</strong><span>sesiones registradas</span></div>
+          <div><strong>{intervals}</strong><span>sesiones de intervalos</span></div>
+        </div>
+        <div className="cardio-chart" role="group" aria-label="Minutos de cardio por día o semana">
+          {buckets.map((b) => <button key={b.key} className={`cardio-chart-bar ${selected === b.key ? 'selected' : ''}`} onClick={() => setSelected(selected === b.key ? null : b.key)} aria-label={`${b.key}: ${Math.round(b.minutes)} minutos`}>
+            <span className="cardio-bar-value">{Math.round(b.minutes)}</span><i style={{ height: `${Math.max(5, b.minutes / maxMinutes * 100)}%` }} /><small>{new Date(`${b.key}T00:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</small>
+          </button>)}
+        </div>
+        <p className="muted cardio-chart-help">Minutos por {days <= 7 ? 'día' : 'semana'}. Toca una barra para ver qué sesión quedó registrada.</p>
+        {activeBucket && <div className="cardio-bucket-detail"><strong>{days <= 7 ? 'Día' : 'Semana desde'} {new Date(`${activeBucket.key}T00:00:00`).toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}</strong>
+          {activeBucket.list.map((r, i) => <p key={`${r.date}-${i}`}>{r.minutes} min · {cardioName(r.kind)}{r.machine ? ` · ${r.machine}` : ''}{r.rpe != null ? ` · esfuerzo ${r.rpe}/10` : ''}</p>)}
+        </div>}
+        <div className="cardio-kind-legend">
+          <span><i className="kind-hard" /> Intervalos: {intervals}</span><span><i className="kind-medium" /> Continuo: {moderate}</span><span><i className="kind-easy" /> Suave: {gentle}</span>{other > 0 && <span><i className="kind-other" /> Personalizado/otro: {other}</span>}
+        </div>
+        <p className="muted">{speechLabel ? `Último test de habla registrado: ${speechLabel}.` : 'El test de habla aún no tiene un registro en este periodo.'}</p>
+      </>}
     </section>
   )
+}
+
+function cardioName(kind: string): string {
+  if (kind === 'intervalos' || kind === 'hiit') return 'Intervalos'
+  if (kind === 'media' || kind === 'liss') return 'Continuo medio'
+  if (kind === 'recuperacion') return 'Suave/recuperación'
+  return 'Personalizado/otro'
 }

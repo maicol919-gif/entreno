@@ -1,5 +1,11 @@
 # Historial de versiones
 
+## 3.28 · 2026-11-24
+- Evolución permite comparar ventanas de 7, 30 y 90 días, con días entrenados, series efectivas y promedio semanal.
+- Las barras de volumen muscular se pueden desplegar para ver qué ejercicios las componen; la comparación usa un promedio semanal del periodo elegido.
+- Añade una gráfica interactiva por ejercicio para carga, repeticiones o RIR, y una tendencia visual del peso corporal.
+- El cardio muestra sesiones, minutos por día/semana y desglose por actividad; distingue ausencia de registros de errores de carga y reconoce los tipos históricos HIIT/LISS.
+
 ## 3.27 · 2026-11-24
 - Añade una biblioteca filtrable de ejercicios por nombre, músculo y equipo disponible, con guías, videos y la animación interactiva existente del jalón neutro.
 - El historial por ejercicio ofrece gráficas recientes de carga, repeticiones y RIR.

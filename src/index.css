@@ -104,6 +104,52 @@ select.bad { border-color: var(--bad); }
 .workout-review-exercise span,.workout-review-exercise small { color:var(--muted); font-size:.82rem; line-height:1.5; }
 .workout-review-exercise small { color:var(--accent); }
 @media (max-width:480px) { .exercise-library-filter-row { grid-template-columns:1fr; } .workout-review-top { display:grid; } }
+.evolution-range-card { display:grid; gap:12px; border-color:rgba(213,255,72,.3); }
+.evolution-range { position:static; }
+.evolution-kpis { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+.evolution-kpis > div { display:grid; gap:4px; min-width:0; padding:12px 10px; border:1px solid var(--line); border-radius:14px; background:rgba(0,0,0,.15); }
+.evolution-kpis strong { font-size:1.35rem; line-height:1; }
+.evolution-kpis span { color:var(--muted); font-size:.72rem; line-height:1.25; }
+.evolution-muscle { border-top:1px solid rgba(255,255,255,.055); }
+.evolution-muscle-row { display:grid; grid-template-columns:88px minmax(40px,1fr) 76px 18px; gap:8px; align-items:center; width:100%; padding:11px 2px; border:0; background:transparent; text-align:left; font-size:.82rem; }
+.evolution-muscle-row > strong { text-align:right; font-size:.78rem; }
+.evolution-muscle-row > strong small { color:var(--muted); font-size:.65rem; font-weight:500; }
+.evolution-muscle-track { height:8px; overflow:hidden; border-radius:99px; background:#263133; }
+.evolution-muscle-track i { display:block; height:100%; border-radius:inherit; background:#71807b; transition:width .35s ease,background .2s; }
+.evolution-muscle-track i.ok { background:var(--accent); }
+.evolution-muscle-track i.warn-t { background:var(--warn); }
+.evolution-muscle-detail { padding:0 8px 8px 96px; }
+.evolution-muscle-detail p { display:flex; justify-content:space-between; gap:8px; margin:7px 0; font-size:.78rem; }
+.evolution-muscle-detail span { color:var(--muted); text-align:right; }
+.exercise-progress-card label { margin-bottom:6px; }
+.progress-chart-wrap { margin:12px 0 4px; }
+.progress-line-chart { display:block; width:100%; height:auto; overflow:visible; }
+.chart-grid { stroke:rgba(255,255,255,.08); stroke-width:1; stroke-dasharray:3 5; }
+.chart-line { fill:none; stroke:var(--accent); stroke-width:3; stroke-linecap:round; stroke-linejoin:round; }
+.chart-point { fill:var(--accent); stroke:#152019; stroke-width:2; }
+.chart-point-label { fill:var(--text); font-size:10px; font-weight:700; }
+.chart-date-row { display:flex; justify-content:space-between; color:var(--muted); font-size:.72rem; }
+.progress-chart-insight { display:flex; justify-content:space-between; gap:8px; padding:10px 0 2px; font-size:.82rem; }
+.progress-chart-insight span { color:var(--accent); font-weight:750; text-align:right; }
+.evolution-empty { padding:14px; border-radius:14px; background:rgba(255,255,255,.035); }
+.evolution-empty p { margin:6px 0 0; color:var(--muted); font-size:.85rem; }
+.cardio-kpis { margin:12px 0; }
+.cardio-chart { display:flex; align-items:flex-end; justify-content:stretch; gap:5px; height:172px; padding:8px 3px 0; border-bottom:1px solid var(--line); }
+.cardio-chart-bar { display:grid; flex:1; grid-template-rows:20px 1fr 22px; align-items:end; justify-items:center; gap:3px; min-width:0; height:100%; padding:0 1px; border:0; border-radius:8px 8px 0 0; background:transparent; }
+.cardio-chart-bar i { display:block; width:min(70%,24px); min-height:4px; border-radius:7px 7px 2px 2px; background:linear-gradient(180deg,var(--accent),#7fae5a); transition:height .35s ease,filter .2s; }
+.cardio-chart-bar.selected i { filter:brightness(1.4); box-shadow:0 0 15px rgba(213,255,72,.35); }
+.cardio-chart-bar small { overflow:hidden; width:100%; color:var(--muted); font-size:.62rem; text-align:center; white-space:nowrap; }
+.cardio-bar-value { color:var(--muted); font-size:.65rem; }
+.cardio-chart-help { margin:7px 0 10px; font-size:.76rem; }
+.cardio-bucket-detail { padding:11px; border:1px solid var(--line); border-radius:12px; background:rgba(255,255,255,.025); }
+.cardio-bucket-detail p { margin-top:8px; color:var(--muted); font-size:.82rem; }
+.cardio-kind-legend { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0; }
+.cardio-kind-legend span { display:flex; align-items:center; gap:7px; color:var(--muted); font-size:.75rem; }
+.cardio-kind-legend i { width:9px; height:9px; border-radius:50%; background:var(--accent); }
+.cardio-kind-legend .kind-medium { background:#71c9f1; }
+.cardio-kind-legend .kind-easy { background:#8da99c; }
+.cardio-kind-legend .kind-other { background:#bc8cf2; }
+@media(max-width:400px) { .evolution-kpis { gap:5px; } .evolution-kpis > div { padding:10px 7px; } .evolution-kpis strong { font-size:1.15rem; } .evolution-muscle-row { grid-template-columns:72px minmax(30px,1fr) 68px 15px; gap:6px; } .evolution-muscle-detail { padding-left:78px; } .cardio-chart { gap:2px; } .cardio-chart-bar small { font-size:.57rem; } }
 .guide ol, .guide ul { margin: 4px 0 8px; padding-left: 20px; }
 .guide li { margin: 2px 0; }
 .bar { display: grid; grid-template-columns: 96px 1fr 70px; gap: 8px; align-items: center; margin: 6px 0; font-size: .9rem; }
