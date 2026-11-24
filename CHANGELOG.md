@@ -1,5 +1,10 @@
 # Historial de versiones
 
+## 3.24 · 2026-11-24
+- Simplifica la elección de cardio con dos objetivos claros: resistencia para fútbol o caminata inclinada personal.
+- La caminata personal también pregunta cómo están las piernas; con piernas cargadas aplica una versión suave (máximo 5 km/h y 2 % de inclinación).
+- Avisa que el cardio en días de pierna es opcional y que el protocolo con pico de 14 % suma un esfuerzo alto a las piernas.
+
 Formato: `mayor.menor`. **Menor** (2.1, 2.2…) para mejoras y correcciones; **mayor** (3.0…) para cambios grandes en la forma de usar la app.
 Para publicar una versión: sube `version` en `package.json`, añade una entrada aquí y vuelve a compilar. La versión se ve en Ajustes → Versión de la app.
 
