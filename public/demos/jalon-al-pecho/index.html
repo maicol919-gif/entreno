@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0c1111" />
+  <title>Demo interactiva · Jalón al pecho</title>
+  <style>
+    :root{color-scheme:dark;--bg:#0c1111;--card:#141b1b;--line:#293635;--muted:#a3b1ad;--mint:#9de4bb;--lime:#e3ff78;--coral:#ff785f}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#26312b 0,transparent 55%),var(--bg);color:#f3f5f3;font:16px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+    button,input{font:inherit}button{color:inherit;cursor:pointer}.wrap{width:min(100%,680px);margin:auto;padding:calc(18px + env(safe-area-inset-top)) 18px calc(30px + env(safe-area-inset-bottom))}
+    .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}.back{border:1px solid var(--line);background:#111918;border-radius:999px;padding:9px 13px;color:var(--muted)}.tag{color:var(--mint);font-size:11px;font-weight:800;letter-spacing:.14em}
+    h1{font-size:clamp(27px,7vw,38px);line-height:1.05;letter-spacing:-.04em;margin:8px 0}.sub{color:var(--muted);margin:0 0 18px}
+    .visual-card{background:linear-gradient(160deg,#1a2221,#101615);border:1px solid #33403d;border-radius:24px;padding:12px;box-shadow:0 18px 60px #0008}
+    .scene{width:min(100%,320px,29svh);aspect-ratio:.604;max-width:100%;margin:auto;position:relative;overflow:hidden;border-radius:16px;background:#191d1c}
+    .sprite{position:absolute;inset:0;background-image:url('./lat-pulldown-poses.png');background-size:500% 100%;background-position:0% 50%;background-repeat:no-repeat;transition:transform .2s ease;will-change:background-position}
+    .scene.zoom .sprite{transform:scale(1.12)}.glow{position:absolute;inset:auto 10% 3%;height:18%;background:radial-gradient(ellipse,#ff815126,transparent 70%);pointer-events:none}
+    .scene-badge{position:absolute;left:12px;top:12px;padding:7px 10px;border:1px solid #ffffff2c;background:#111a17dc;border-radius:999px;font-size:11px;font-weight:750;backdrop-filter:blur(8px)}
+    .muscle-badge{position:absolute;right:10px;top:12px;max-width:46%;border:1px solid #ff8b7255;background:#271b1bdc;color:#ffd2c5;border-radius:13px;padding:8px 10px;font-size:11px;opacity:0;transform:translateY(-4px);transition:.2s;pointer-events:none}.scene.show-muscles .muscle-badge{opacity:1;transform:none}
+    .visual-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 3px 1px}.phase-label{font-weight:750}.phase-count{color:var(--muted);font-size:13px}.smallbtn{border:1px solid var(--line);background:#17201f;border-radius:12px;padding:8px 10px;font-size:12px}.controls{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;margin-top:13px}
+    .play{width:52px;height:48px;border:0;border-radius:16px;background:linear-gradient(120deg,var(--mint),var(--lime));color:#132018;font-weight:900;font-size:18px;box-shadow:0 6px 22px #a7ec8d29}.scrub{width:100%;accent-color:var(--mint)}.time{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;min-width:36px;text-align:right}
+    .dots{display:flex;justify-content:space-between;gap:6px;margin:12px 1px 0}.dot{width:100%;min-height:33px;border:1px solid var(--line);background:#101716;border-radius:11px;color:var(--muted);font-size:11px}.dot[aria-current="step"]{border-color:var(--mint);background:#9de4bb1c;color:var(--mint);box-shadow:inset 0 0 0 1px #9de4bb2b}
+    .card{margin-top:14px;background:#141b1b;border:1px solid var(--line);border-radius:20px;padding:16px}.card h2{font-size:17px;margin:0 0 9px}.cue{min-height:48px;margin:0;color:#e8eeeb}.setup{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:13px}.setup div{background:#0f1514;border:1px solid #25312f;border-radius:13px;padding:10px;font-size:12px;color:#c3ceca}.setup b{display:block;color:#f3f5f3;margin-bottom:3px;font-size:12px}
+    .toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px}.speed{display:flex;gap:5px}.speed button{padding:7px 9px;border:1px solid var(--line);background:#111817;border-radius:10px;color:var(--muted);font-size:12px}.speed button.on{border-color:var(--mint);color:var(--mint);background:#9de4bb14}.note{margin:13px 2px 0;color:var(--muted);font-size:12px}.note b{color:#f7c9a6}
+    .steps{display:grid;gap:8px;margin-top:10px}.step{padding:10px 12px;border-radius:12px;background:#0f1514;border:1px solid #25312f;color:var(--muted);font-size:13px}.step.active{border-color:#96dbb6;color:#eef6f0;background:#1a2a22}.step strong{color:inherit}.foot{text-align:center;color:#77847f;font-size:11px;margin:16px 0 0}
+    @media(max-width:430px){.wrap{padding-left:12px;padding-right:12px}.visual-card{padding:9px}.scene{width:min(100%,320px,29svh)}.setup{grid-template-columns:1fr}.setup div{padding:8px 10px}.controls{gap:8px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <header class="top"><span class="tag">ENTRENO · MARTES</span><button class="back" type="button" onclick="history.back()">← Volver</button></header>
+    <p class="tag">ESPALDA · EJERCICIO 1</p>
+    <h1>Jalón al pecho</h1>
+    <p class="sub">Agarre neutro, con las palmas enfrentadas. Mira el recorrido y toca una fase para revisarla con calma.</p>
+
+    <section class="visual-card" aria-label="Animación interactiva del jalón al pecho">
+      <div class="scene" id="scene" role="img" aria-label="Persona sentada realizando un jalón al pecho">
+        <div class="sprite" id="sprite"></div><div class="glow"></div>
+        <span class="scene-badge" id="sceneBadge">01 · PREPARA</span>
+        <span class="muscle-badge">PRINCIPAL · Dorsal ancho<br>Apoyo · Bíceps y espalda alta</span>
+      </div>
+      <div class="visual-foot"><span class="phase-label" id="phaseTitle">Posición inicial</span><span class="phase-count" id="phaseCount">1 / 5</span></div>
+      <div class="controls">
+        <button class="play" id="play" type="button" aria-label="Pausar animación">Ⅱ</button>
+        <input class="scrub" id="scrub" type="range" min="0" max="4" step="1" value="0" aria-label="Recorrer las fases del ejercicio" />
+        <span class="time" id="playState">AUTO</span>
+      </div>
+      <nav class="dots" aria-label="Fases del movimiento">
+        <button class="dot" type="button" data-frame="0">Inicio</button>
+        <button class="dot" type="button" data-frame="1">Activa</button>
+        <button class="dot" type="button" data-frame="2">Tira</button>
+        <button class="dot" type="button" data-frame="3">Aprieta</button>
+        <button class="dot" type="button" data-frame="4">Regresa</button>
+      </nav>
+      <div class="toolbar">
+        <div class="speed" aria-label="Velocidad de reproducción">
+          <button type="button" data-speed="0.6">Lenta</button><button type="button" class="on" data-speed="1">Normal</button><button type="button" data-speed="1.5">Rápida</button>
+        </div>
+        <button class="smallbtn" id="muscles" type="button" aria-pressed="false">Ver músculos</button>
+        <button class="smallbtn" id="zoom" type="button" aria-pressed="false">Ampliar</button>
+      </div>
+    </section>
+
+    <section class="card" aria-live="polite">
+      <h2 id="cueTitle">Colócate y alcanza la barra</h2>
+      <p class="cue" id="cue">Ajusta el apoyo sobre los muslos, apoya los pies y toma la barra con un agarre cómodo. Mantén el pecho relajadamente erguido.</p>
+      <div class="setup">
+        <div><b>1 · Agarre</b>Palmas enfrentadas en los dos mangos.</div>
+        <div><b>2 · Tronco</b>Costillas tranquilas; leve inclinación natural.</div>
+        <div><b>3 · Hombros</b>Usa un recorrido cómodo, sin forzar arriba.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Qué observar en cada repetición</h2>
+      <div class="steps" id="steps">
+        <div class="step active"><strong>Inicio:</strong> brazos arriba, hombros lejos de las orejas.</div>
+        <div class="step"><strong>Activa:</strong> empieza llevando los codos hacia abajo.</div>
+        <div class="step"><strong>Tira:</strong> acerca la barra por delante hacia la parte alta del pecho.</div>
+        <div class="step"><strong>Final:</strong> pausa breve sin balancear ni echarte mucho atrás.</div>
+        <div class="step"><strong>Regreso:</strong> deja subir la barra despacio y con control.</div>
+      </div>
+      <p class="note"><b>Para tus hombros:</b> elige un agarre y recorrido sin dolor. No lleves la barra detrás de la nuca; si aparece molestia, detente y ajusta.</p>
+    </section>
+    <p class="foot">Prototipo visual local · no está integrado ni publicado en Entreno.</p>
+  </main>
+  <script>
+    const frames = [
+      { title:'Posición inicial', badge:'01 · PREPARA', heading:'Colócate y sujeta los mangos', cue:'Ajusta el apoyo sobre los muslos, apoya los pies y toma los mangos con las palmas enfrentadas. Mantén el pecho relajadamente erguido.' },
+      { title:'Inicia el tirón', badge:'02 · ACTIVA', heading:'Empieza desde la espalda', cue:'Lleva los hombros suavemente hacia abajo y comienza a bajar los codos. Evita encoger los hombros.' },
+      { title:'Recorrido medio', badge:'03 · TIRA', heading:'Codos hacia abajo', cue:'Guía los mangos por delante de la cara. Mantén muñecas alineadas y torso estable.' },
+      { title:'Final del recorrido', badge:'04 · CONTROLA', heading:'Mangos hacia el pecho alto', cue:'Detén la bajada cerca de la parte alta del pecho, sin golpearlo ni inclinarte para hacer trampa.' },
+      { title:'Vuelta controlada', badge:'05 · REGRESA', heading:'Deja subir con control', cue:'Extiende los brazos poco a poco. Conserva el control del cable y termina en la posición inicial.' },
+    ];
+    const scene=document.querySelector('#scene'), sprite=document.querySelector('#sprite'), scrub=document.querySelector('#scrub');
+    const play=document.querySelector('#play'), playState=document.querySelector('#playState');
+    let frame=0, playing=true, speed=1, timer=null;
+    function render(){
+      sprite.style.backgroundPosition=`${frame*25}% 50%`;
+      document.querySelector('#phaseTitle').textContent=frames[frame].title;
+      document.querySelector('#sceneBadge').textContent=frames[frame].badge;
+      document.querySelector('#phaseCount').textContent=`${frame+1} / ${frames.length}`;
+      document.querySelector('#cueTitle').textContent=frames[frame].heading;
+      document.querySelector('#cue').textContent=frames[frame].cue;
+      document.querySelectorAll('.dot').forEach((b,i)=>b.setAttribute('aria-current',i===frame?'step':'false'));
+      document.querySelectorAll('.step').forEach((el,i)=>el.classList.toggle('active',i===frame));
+      scrub.value=String(frame);
+      scene.setAttribute('aria-label',`${frames[frame].title}: demostración del jalón al pecho`);
+    }
+    function stopTimer(){if(timer){clearInterval(timer);timer=null}}
+    function start(){stopTimer();playing=true;play.textContent='Ⅱ';play.setAttribute('aria-label','Pausar animación');playState.textContent='AUTO';timer=setInterval(()=>{frame=(frame+1)%frames.length;render()},1050/speed)}
+    function pause(){stopTimer();playing=false;play.textContent='▶';play.setAttribute('aria-label','Reproducir animación');playState.textContent='PAUSA'}
+    play.addEventListener('click',()=>playing?pause():start());
+    scrub.addEventListener('input',()=>{pause();frame=Number(scrub.value);render()});
+    document.querySelectorAll('.dot').forEach(b=>b.addEventListener('click',()=>{pause();frame=Number(b.dataset.frame);render()}));
+    document.querySelectorAll('[data-speed]').forEach(b=>b.addEventListener('click',()=>{speed=Number(b.dataset.speed);document.querySelectorAll('[data-speed]').forEach(x=>x.classList.toggle('on',x===b));if(playing)start()}));
+    document.querySelector('#muscles').addEventListener('click',e=>{const on=scene.classList.toggle('show-muscles');e.currentTarget.setAttribute('aria-pressed',String(on));e.currentTarget.textContent=on?'Ocultar músculos':'Ver músculos'});
+    document.querySelector('#zoom').addEventListener('click',e=>{const on=scene.classList.toggle('zoom');e.currentTarget.setAttribute('aria-pressed',String(on));e.currentTarget.textContent=on?'Reducir':'Ampliar'});
+    render();start();
+  </script>
+</body>
+</html>
