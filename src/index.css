@@ -529,3 +529,50 @@ label { color: #a4b1ad; }
   .cardio-route { grid-template-columns: 38px minmax(0, 1fr) 16px; gap: 9px; padding: 11px 9px; }
   .route-icon { width: 36px; height: 36px; border-radius: 11px; }
 }
+
+/* Reloj de descanso: tarjeta flotante centrada sobre la navegación. */
+:root { --tabs-edge: 12px; --tabs-height: 66px; }
+.restbar {
+  position: fixed;
+  left: 50%;
+  right: auto;
+  bottom: calc(var(--tabs-edge) + var(--tabs-height) + 9px + env(safe-area-inset-bottom));
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: min(520px, calc(100% - 28px));
+  padding: 8px 10px 8px 14px;
+  border: 1px solid rgba(139,225,176,.28);
+  border-radius: 17px;
+  color: var(--text);
+  background: rgba(19,27,28,.96);
+  box-shadow: 0 10px 34px rgba(0,0,0,.42), 0 0 20px rgba(139,225,176,.08);
+  backdrop-filter: blur(18px);
+  transform: translateX(-50%);
+}
+.restbar-readout { display: grid; gap: 1px; min-width: 72px; }
+.restbar-readout > span, .restbar-finished > span { color: var(--muted); font-size: .54rem; font-weight: 850; letter-spacing: .13em; }
+.restbar .clock { min-width: 0; color: var(--accent); font-size: 1.42rem; font-weight: 850; line-height: 1.1; text-align: left; font-variant-numeric: tabular-nums; }
+.restbar-actions { display: flex; align-items: center; gap: 6px; }
+.restbar button { min-height: 40px; padding: 7px 11px; border: 1px solid rgba(139,225,176,.16); border-radius: 12px; color: #d5f4e2; background: rgba(139,225,176,.09); font-size: .8rem; font-weight: 800; }
+.restbar button.restbar-primary { border-color: transparent; color: #122017; background: linear-gradient(120deg,#8be1b0,#c8f58c); }
+.restbar.done { border-color: rgba(242,184,75,.4); background: rgba(35,30,20,.97); }
+.restbar-finished { display: grid; gap: 2px; min-width: 0; }
+.restbar-finished strong { font-size: .9rem; line-height: 1.25; }
+@media (max-width: 600px) {
+  :root { --tabs-edge: 8px; --tabs-height: 62px; }
+  .restbar { bottom: calc(var(--tabs-edge) + var(--tabs-height) + 8px + env(safe-area-inset-bottom)); gap: 7px; width: calc(100% - 28px); padding: 7px 8px 7px 11px; border-radius: 15px; }
+  .restbar-readout { min-width: 62px; }
+  .restbar .clock { font-size: 1.3rem; }
+  .restbar-actions { gap: 5px; }
+  .restbar button { min-height: 38px; padding: 6px 9px; font-size: .75rem; }
+}
+@media (max-width: 350px) {
+  .restbar { gap: 5px; padding-right: 6px; padding-left: 8px; }
+  .restbar-readout { min-width: 56px; }
+  .restbar .clock { font-size: 1.18rem; }
+  .restbar-actions { gap: 3px; }
+  .restbar button { padding-right: 7px; padding-left: 7px; }
+}

@@ -125,15 +125,17 @@ export function RestBar() {
     <div className={`restbar ${finished ? 'done' : ''}`} role="timer" aria-live="off">
       {finished ? (
         <>
-          <strong>¡Descanso terminado! Siguiente serie</strong>
-          <button onClick={clear}>OK</button>
+          <div className="restbar-finished"><span>DESCANSO</span><strong>¡Listo para la siguiente serie!</strong></div>
+          <button className="restbar-primary" onClick={clear}>OK</button>
         </>
       ) : (
         <>
-          <button onClick={() => add(-30)} aria-label="Restar 30 segundos">−30</button>
-          <strong className="clock">{mm}:{ss}</strong>
-          <button onClick={() => add(30)} aria-label="Sumar 30 segundos">+30</button>
-          <button className="skip" onClick={clear}>Saltar</button>
+          <div className="restbar-readout"><span>DESCANSO</span><strong className="clock">{mm}:{ss}</strong></div>
+          <div className="restbar-actions">
+            <button onClick={() => add(-30)} aria-label="Restar 30 segundos">−30</button>
+            <button onClick={() => add(30)} aria-label="Sumar 30 segundos">+30</button>
+            <button className="restbar-primary" onClick={clear}>Saltar</button>
+          </div>
         </>
       )}
     </div>

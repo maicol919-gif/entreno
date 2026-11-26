@@ -1,5 +1,9 @@
 # Historial de versiones
 
+## 3.30 · 2026-11-26
+- Rediseña el reloj de descanso como una tarjeta compacta centrada, con jerarquía clara para el tiempo y controles adaptados a pantallas estrechas.
+- Corrige la cascada de estilos para mantener el reloj separado de la navegación inferior.
+
 ## 3.29 · 2026-11-24
 - El descanso permanece fijo en la parte inferior de la pantalla, por encima de la navegación y separado del contenido editable.
 - Corrige la carga de la animación del jalón dentro de la PWA, evitando que el fallback de navegación abra la pantalla Hoy.
