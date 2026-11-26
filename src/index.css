@@ -686,11 +686,11 @@ label { color: #a4b1ad; }
 /* Resumen final simplificado con distribución circular de series. */
 .workout-review { display:flex; flex-direction:column; gap:9px; width:100%; min-width:0; margin:8px 0 12px; }
 .workout-simple-summary,.workout-compare-simple { width:100%; min-width:0; padding:16px 14px; border:1px solid rgba(171,235,180,.14); border-radius:20px; background:radial-gradient(ellipse at 100% 0,rgba(123,211,158,.1),transparent 48%),linear-gradient(145deg,#18211f,#111818); box-shadow:0 12px 28px rgba(0,0,0,.15); }
-.workout-simple-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:12px; }
+.workout-simple-head { display:grid; gap:4px; margin-bottom:12px; }
 .workout-simple-head .eyebrow,.workout-compare-head .eyebrow { color:#9bcfac; font-size:.63rem; letter-spacing:.14em; }
-.workout-simple-head h4 { margin:0; color:#edf5ef; font-size:1.03rem; line-height:1.2; letter-spacing:-.02em; text-align:right; }
-.workout-ring-layout { display:grid; grid-template-columns:minmax(116px,132px) minmax(0,1fr); align-items:center; gap:12px; width:100%; min-height:132px; }
-.workout-ring { position:relative; width:min(100%,132px); aspect-ratio:1; justify-self:center; }
+.workout-simple-head h4 { margin:0; color:#edf5ef; font-size:1.03rem; line-height:1.2; letter-spacing:-.02em; text-align:left; }
+.workout-ring-layout { display:grid; grid-template-columns:minmax(132px,156px) minmax(0,1fr); align-items:center; gap:14px; width:100%; min-height:156px; }
+.workout-ring { position:relative; width:min(100%,156px); aspect-ratio:1; justify-self:center; }
 .workout-ring svg { display:block; width:100%; height:100%; overflow:visible; }
 .workout-ring-track { fill:none; stroke:rgba(255,255,255,.07); stroke-width:9; }
 .workout-ring-segment { cursor:pointer; transition:stroke-width .2s ease,filter .2s ease; }
@@ -699,11 +699,12 @@ label { color: #a4b1ad; }
 .workout-ring-center strong { color:#f3f7f3; font-size:2rem; font-weight:850; letter-spacing:-.07em; line-height:1; font-variant-numeric:tabular-nums; }
 .workout-ring-center span { margin-top:3px; color:#9eafa4; font-size:.68rem; }
 .workout-ring-legend { display:grid; gap:3px; min-width:0; }
-.workout-ring-legend > button,.workout-ring-more > button { display:grid; grid-template-columns:8px minmax(0,1fr) auto; align-items:center; gap:7px; width:100%; min-height:30px; padding:4px 6px; border:0; border-radius:8px; color:#c4d0c9; background:transparent; text-align:left; }
+.workout-ring-legend > button,.workout-ring-more > button { display:grid; grid-template-columns:8px minmax(0,1fr) auto; grid-template-rows:18px 3px; align-items:center; gap:3px 7px; width:100%; min-height:34px; padding:4px 6px; border:0; border-radius:8px; color:#c4d0c9; background:transparent; text-align:left; }
 .workout-ring-legend > button.active,.workout-ring-more > button.active { background:rgba(255,255,255,.06); color:#f2f8f3; }
 .workout-ring-legend button > i,.workout-ring-more button > i { width:7px; height:7px; border-radius:50%; }
 .workout-ring-legend button > span,.workout-ring-more button > span { overflow:hidden; font-size:.7rem; text-overflow:ellipsis; white-space:nowrap; }
 .workout-ring-legend button > b,.workout-ring-more button > b { color:#eff8f0; font-size:.72rem; font-variant-numeric:tabular-nums; }
+.workout-ring-legend button > em,.workout-ring-more button > em { display:block; grid-column:2/4; grid-row:2; height:2px; max-width:100%; border-radius:3px; opacity:.78; box-shadow:0 0 7px rgba(255,255,255,.08); transition:width .3s ease; }
 .workout-ring-more { min-width:0; }
 .workout-ring-more summary { display:flex; min-height:29px; align-items:center; padding-left:6px; color:#8ecaa2; cursor:pointer; font-size:.68rem; font-weight:750; list-style:none; }
 .workout-ring-more summary::-webkit-details-marker { display:none; }
@@ -728,8 +729,8 @@ label { color: #a4b1ad; }
 .workout-review-details summary { min-height:38px; color:#8fcba2; font-size:.75rem; }
 @media(max-width:360px) {
   .workout-simple-summary,.workout-compare-simple { padding:13px 11px; }
-  .workout-ring-layout { grid-template-columns:112px minmax(0,1fr); gap:7px; }
-  .workout-ring { width:112px; }
+  .workout-ring-layout { grid-template-columns:124px minmax(0,1fr); gap:8px; }
+  .workout-ring { width:124px; }
   .workout-ring-legend button > span { font-size:.64rem; }
   .workout-simple-values > div > strong { font-size:1.35rem; }
 }

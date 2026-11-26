@@ -1,5 +1,8 @@
 # Historial de versiones
 
+## 3.35 · 2026-11-26
+- Refuerza el resumen de sesión inspirado en dashboards de actividad: dona de series con leyenda proporcional compacta y selección por ejercicio.
+
 ## 3.34 · 2026-11-26
 - Quita la columna izquierda vacía de la tarjeta de cierre y mueve el indicador de completado a una esquina, ampliando el resumen a todo el ancho.
 
