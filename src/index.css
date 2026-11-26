@@ -733,3 +733,14 @@ label { color: #a4b1ad; }
   .workout-ring-legend button > span { font-size:.64rem; }
   .workout-simple-values > div > strong { font-size:1.35rem; }
 }
+
+/* La marca de completado pasa a la esquina; el resumen usa todo el ancho. */
+.card.workout-complete { position:relative; display:block; width:100%; min-width:0; }
+.workout-complete-mark { position:absolute; top:16px; right:16px; width:36px; height:36px; border-radius:12px; font-size:1.15rem; }
+.workout-complete-copy { width:100%; min-width:0; }
+.workout-complete-copy > .eyebrow { padding-right:48px; }
+.workout-complete-copy .workout-review { width:100%; min-width:0; margin-right:0; margin-left:0; }
+@media(max-width:480px) {
+  .card.workout-complete { display:block; padding:15px; }
+  .workout-complete-mark { top:14px; right:14px; }
+}

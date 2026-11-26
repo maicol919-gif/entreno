@@ -1,5 +1,8 @@
 # Historial de versiones
 
+## 3.34 · 2026-11-26
+- Quita la columna izquierda vacía de la tarjeta de cierre y mueve el indicador de completado a una esquina, ampliando el resumen a todo el ancho.
+
 ## 3.33 · 2026-11-26
 - Simplifica el resumen móvil con un gráfico circular interactivo que distribuye las series por ejercicio y muestra el total en el centro.
 - Reorganiza el espacio lateral y reduce la información inicial; comparación y detalles quedan compactos o plegados.
