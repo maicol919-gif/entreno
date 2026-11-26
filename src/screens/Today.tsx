@@ -795,7 +795,7 @@ function WorkoutReview({ sessionId, sessionDate, exercises, exerciseOrder, cardi
         : 'Aún no hay registros suficientes para comparar esta métrica.'
     : 'Primera referencia de este ejercicio: ya tienes un punto de comparación para la próxima vez.'
   return <div className="workout-review">
-    <div className="workout-story-heading"><span className="eyebrow">LA SESIÓN EN DATOS</span><h4>Tu progreso, ejercicio a ejercicio</h4><p>Compara hoy con tu sesión anterior y observa qué cambió.</p></div>
+    <div className="workout-story-heading workout-story-hero"><span className="eyebrow">SESIÓN GUARDADA · {currentDateLabel}</span><h4>{records.length ? 'Hoy dejaste una marca.' : 'Un entrenamiento más, sumado.'}</h4><p>{records.length ? `${records.length === 1 ? 'Tu mejor resultado llegó en ' : 'Tus mejores resultados llegaron en '}${records[0].name}.` : `${effectiveSets} series efectivas en ${rows.length} ejercicios: el trabajo de hoy ya cuenta para tu progreso.`}</p><div className="workout-story-route" aria-label="Recorrido de ejercicios">{rows.map((row, index) => <button key={row.exerciseId} className={row.exerciseId === selected.exerciseId ? 'active' : ''} onClick={() => setSelectedId(row.exerciseId)} aria-label={`Ver ${row.name}`}><span>{String(index + 1).padStart(2, '0')}</span><i style={{ height: `${Math.max(12, Math.min(100, row.sets.filter((set) => !set.is_warmup).length * 22))}%` }} /><small>{row.name}</small></button>)}</div></div>
     <div className="workout-review-kpis">
       <div><strong>{rows.length}</strong><span>ejercicios</span></div>
       <div><strong>{effectiveSets}</strong><span>series efectivas</span></div>
@@ -803,12 +803,12 @@ function WorkoutReview({ sessionId, sessionDate, exercises, exerciseOrder, cardi
     </div>
     {records.length > 0 && <div className="workout-record-strip"><span aria-hidden="true">✦</span><div><strong>{records.length === 1 ? 'Nueva marca personal' : `${records.length} marcas personales`}</strong><small>{records.map((row) => row.name).join(' · ')}</small></div></div>}
     <div className="workout-chart-panel">
-      <div className="workout-chart-title"><span className="eyebrow">COMPARACIÓN</span><select aria-label="Ejercicio para comparar" value={selected.exerciseId} onChange={(e) => setSelectedId(e.target.value)}>{rows.map((row) => <option key={row.exerciseId} value={row.exerciseId}>{row.name}</option>)}</select></div>
+      <div className="workout-chart-title"><span className="eyebrow">TU HISTORIA · {rows.indexOf(selected) + 1} DE {rows.length}</span><div className="workout-exercise-rail" aria-label="Elige un ejercicio">{rows.map((row) => <button key={row.exerciseId} className={row.exerciseId === selected.exerciseId ? 'active' : ''} onClick={() => setSelectedId(row.exerciseId)}>{row.name}</button>)}</div></div>
       <div className="subtabs workout-chart-metrics" aria-label="Métrica del resumen">
         <button className={metric === 'load' ? 'active' : ''} onClick={() => setMetric('load')}>Carga principal</button>
         <button className={metric === 'reps' ? 'active' : ''} onClick={() => setMetric('reps')}>Repeticiones</button>
       </div>
-      {chartValues.some((n) => n != null) ? <div className="workout-compare-chart" role="img" aria-label={`${selected.name}: comparación de ${metric === 'load' ? 'carga' : 'repeticiones'} entre sesiones`}>
+      {chartValues.some((n) => n != null) ? <div className="workout-compare-chart workout-mobile-chart" role="img" aria-label={`${selected.name}: comparación de ${metric === 'load' ? 'carga' : 'repeticiones'} entre sesiones`}>
         {chartValues.map((value, i) => <div className={`workout-compare-column ${i === 1 ? 'current' : 'previous'}`} key={i}>
           <strong className="workout-compare-value">{value == null ? '—' : `${value}${metric === 'load' ? '' : ' reps'}`}</strong>
           <div className="workout-compare-track"><i style={{ height: value == null ? '0%' : `${Math.max(8, value / chartMax * 100)}%` }} /></div>

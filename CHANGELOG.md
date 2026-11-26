@@ -1,5 +1,9 @@
 # Historial de versiones
 
+## 3.32 · 2026-11-26
+- Rediseña el resumen de fin de sesión para móvil: portada narrativa, recorrido táctil por ejercicios y comparación visual con controles grandes.
+- Prioriza la lectura rápida; deja las series completas en detalles desplegables.
+
 ## 3.31 · 2026-11-26
 - Rediseña el resumen al terminar el entreno con métricas visuales, marcas personales y una gráfica interactiva que compara carga o repeticiones de cada ejercicio frente a su última sesión.
 - Explica el cambio con datos registrados y deja las series completas en un desplegable.
