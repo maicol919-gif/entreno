@@ -13,7 +13,7 @@ import { cardioPhase, levelMinutes, type LegContext } from '../lib/treadmill'
 import { LONG_REST_SEC, TIME_OPTIONS, planToTime } from '../lib/timeBudget'
 import { useRest } from '../rest'
 import { useKeepAwake } from '../lib/keepAwake'
-import { loadPast, fmtSets } from '../lib/history'
+import { loadPast, fmtDate, fmtSets } from '../lib/history'
 import { totalLoad } from '../lib/progression'
 
 interface CycleSummary {
@@ -522,8 +522,8 @@ export default function Today() {
           <div className="workout-complete-copy">
             <span className="eyebrow">ENTRENO DE HOY</span>
             <h3>¡Día completado!</h3>
-            <p className="workout-complete-stats">{day?.name ?? 'Sesión de hoy'} · {doneTotal} series{cardioMin > 0 ? ` · ${Math.round(cardioMin)} min de cardio` : ''}</p>
-            <WorkoutReview sessionId={session.id} exercises={exercises} />
+            <p className="workout-complete-stats">{day?.name ?? 'Sesión de hoy'}</p>
+            <WorkoutReview sessionId={session.id} sessionDate={session.date} exercises={exercises} exerciseOrder={activeItems.map((item) => item.exercise_id)} cardioMin={cardioMin} />
             <p className="muted">Tu entrenamiento está guardado. Reabre la sesión solo si quieres revisar o editar los ejercicios.</p>
             <button className="primary" onClick={reopen}>Reabrir entrenamiento</button>
           </div>
@@ -694,11 +694,21 @@ interface WorkoutSetSummary {
   exerciseId: string
   name: string
   sets: { reps: number | null; load_kg: number | null; rir: number | null; is_warmup: boolean }[]
+  loadType: Exercise['load_type']
+  currentTop: number | null
+  previousTop: number | null
+  currentBestReps: { reps: number; load: number | null } | null
+  previousBestReps: { reps: number; load: number | null } | null
+  previousDate: string | null
+  averageRir: number | null
   highlight: string | null
 }
 
-function WorkoutReview({ sessionId, exercises }: { sessionId: string; exercises: Exercise[] }) {
+function WorkoutReview({ sessionId, sessionDate, exercises, exerciseOrder, cardioMin }: { sessionId: string; sessionDate: string; exercises: Exercise[]; exerciseOrder: string[]; cardioMin: number }) {
   const [rows, setRows] = useState<WorkoutSetSummary[] | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [metric, setMetric] = useState<'load' | 'reps'>('load')
+  const orderKey = exerciseOrder.join(',')
   useEffect(() => {
     let cancelled = false
     void (async () => {
@@ -706,17 +716,32 @@ function WorkoutReview({ sessionId, exercises }: { sessionId: string; exercises:
       if (error || !data) { if (!cancelled) setRows([]); return }
       const grouped = new Map<string, WorkoutSetSummary['sets']>()
       for (const set of data) grouped.set(set.exercise_id, [...(grouped.get(set.exercise_id) ?? []), { reps: set.reps, load_kg: set.load_kg, rir: set.rir, is_warmup: !!set.is_warmup }])
-      const result = await Promise.all([...grouped].map(async ([exerciseId, sets]) => {
+      const result = await Promise.all([...grouped].map(async ([exerciseId, sets]): Promise<WorkoutSetSummary | null> => {
         const ex = exercises.find((item) => item.id === exerciseId)
         if (!ex) return null
         const work = sets.filter((set) => !set.is_warmup)
         const prior = await loadPast(exerciseId, sessionId).catch(() => [])
+        const previous = prior[0] ?? null
+        const loadOf = (set: { load_kg: number | null }) => set.load_kg
+        const bestLoad = (items: { load_kg: number | null }[]) => {
+          const loads = items.map(loadOf).filter((n): n is number => n != null)
+          return loads.length ? (ex.load_type === 'assistance' ? Math.min(...loads) : Math.max(...loads)) : null
+        }
+        const bestReps = (items: { reps: number | null; load_kg: number | null }[]) => {
+          const candidates = items.filter((set): set is { reps: number; load_kg: number | null } => set.reps != null)
+          return candidates.length ? candidates.reduce((best, set) => set.reps > best.reps ? set : best) : null
+        }
+        const rirValues = work.map((set) => set.rir).filter((n): n is number => n != null)
+        const currentTop = bestLoad(work)
+        const previousTop = bestLoad(previous?.sets ?? [])
+        const currentBestReps = bestReps(work)
+        const previousBestReps = bestReps(previous?.sets ?? [])
         let highlight: string | null = null
         if (work.length && prior.length === 0) highlight = 'Primer registro guardado de este ejercicio.'
         else if (work.length && prior.length > 0) {
-          const loadOf = (set: { load_kg: number | null }) => totalLoad(set.load_kg, ex.load_type, ex.bar_kg)
-          const currentLoads = work.map(loadOf).filter((n): n is number => n != null)
-          const oldLoads = prior.flatMap((session) => session.sets.map(loadOf)).filter((n): n is number => n != null)
+          const normalizedLoad = (set: { load_kg: number | null }) => totalLoad(set.load_kg, ex.load_type, ex.bar_kg)
+          const currentLoads = work.map(normalizedLoad).filter((n): n is number => n != null)
+          const oldLoads = prior.flatMap((session) => session.sets.map(normalizedLoad)).filter((n): n is number => n != null)
           if (currentLoads.length && oldLoads.length) {
             const currentTop = ex.load_type === 'assistance' ? Math.min(...currentLoads) : Math.max(...currentLoads)
             const oldTop = ex.load_type === 'assistance' ? Math.min(...oldLoads) : Math.max(...oldLoads)
@@ -724,26 +749,77 @@ function WorkoutReview({ sessionId, exercises }: { sessionId: string; exercises:
             if (improved) highlight = `Nueva mejor marca de carga: ${currentTop} kg${ex.load_type === 'assistance' ? ' de asistencia' : ''}.`
             else {
               const sameTop = (a: number, b: number) => Math.abs(a - b) < 0.001
-              const currentReps = Math.max(...work.filter((s) => loadOf(s) != null && sameTop(loadOf(s)!, currentTop)).map((s) => s.reps ?? 0))
-              const oldReps = Math.max(...prior.flatMap((s) => s.sets.filter((set) => loadOf(set) != null && sameTop(loadOf(set)!, currentTop)).map((set) => set.reps ?? 0)), 0)
-              if (currentReps > oldReps && oldReps > 0) highlight = `Más repeticiones con ${currentTop} kg: ${currentReps} (antes ${oldReps}).`
+              const currentNormalizedTop = ex.load_type === 'assistance' ? Math.min(...currentLoads) : Math.max(...currentLoads)
+              const currentReps = Math.max(...work.filter((s) => normalizedLoad(s) != null && sameTop(normalizedLoad(s)!, currentNormalizedTop)).map((s) => s.reps ?? 0))
+              const oldReps = Math.max(...prior.flatMap((s) => s.sets.filter((set) => normalizedLoad(set) != null && sameTop(normalizedLoad(set)!, currentNormalizedTop)).map((set) => set.reps ?? 0)), 0)
+              if (currentReps > oldReps && oldReps > 0) highlight = `Más repeticiones con ${currentNormalizedTop} kg: ${currentReps} (antes ${oldReps}).`
             }
           }
         }
-        return { exerciseId, name: ex.name, sets, highlight }
+        return {
+          exerciseId, name: ex.name, sets, loadType: ex.load_type, currentTop, previousTop,
+          currentBestReps: currentBestReps ? { reps: currentBestReps.reps, load: currentBestReps.load_kg } : null,
+          previousBestReps: previousBestReps ? { reps: previousBestReps.reps, load: previousBestReps.load_kg } : null,
+          previousDate: previous ? previous.date : null,
+          averageRir: rirValues.length ? Math.round(rirValues.reduce((a, b) => a + b, 0) / rirValues.length * 10) / 10 : null,
+          highlight,
+        }
       }))
-      if (!cancelled) setRows(result.filter((x): x is WorkoutSetSummary => x != null))
+      const order = new Map(orderKey.split(',').filter(Boolean).map((id, index) => [id, index]))
+      const ordered = result.filter((x): x is WorkoutSetSummary => x != null).sort((a, b) => (order.get(a.exerciseId) ?? 999) - (order.get(b.exerciseId) ?? 999))
+      if (!cancelled) {
+        setRows(ordered)
+        setSelectedId((current) => current && ordered.some((row) => row.exerciseId === current) ? current : ordered[0]?.exerciseId ?? null)
+      }
     })()
     return () => { cancelled = true }
-  }, [sessionId, exercises])
+  }, [sessionId, exercises, orderKey])
 
   if (rows === null) return <p className="muted">Preparando el resumen de tus series…</p>
   if (!rows.length) return null
-  const records = rows.filter((row) => row.highlight)
+  const selected = rows.find((row) => row.exerciseId === selectedId) ?? rows[0]
+  const effectiveSets = rows.reduce((n, row) => n + row.sets.filter((set) => !set.is_warmup).length, 0)
+  const records = rows.filter((row) => row.highlight?.startsWith('Nueva mejor marca') || row.highlight?.startsWith('Más repeticiones'))
+  const loadUnit = selected.loadType === 'assistance' ? 'kg de ayuda' : selected.loadType === 'per_side' ? 'kg por lado' : selected.loadType === 'per_hand' ? 'kg por mano' : selected.loadType === 'plates_per_side_plus_bar' ? 'kg de discos/lado' : 'kg'
+  const chartValues = metric === 'load' ? [selected.previousTop, selected.currentTop] : [selected.previousBestReps?.reps ?? null, selected.currentBestReps?.reps ?? null]
+  const chartMax = Math.max(1, ...chartValues.filter((n): n is number => n != null))
+  const currentDateLabel = fmtDate(sessionDate)
+  const previousDateLabel = selected.previousDate ? fmtDate(selected.previousDate) : 'Primera referencia'
+  const delta = chartValues[0] != null && chartValues[1] != null ? Math.round((chartValues[1] - chartValues[0]) * 10) / 10 : null
+  const repLoadLabel = (load: number | null) => load == null ? 'peso corporal' : `${load} kg${selected.loadType === 'assistance' ? ' de ayuda' : selected.loadType === 'per_side' ? ' por lado' : selected.loadType === 'per_hand' ? ' por mano' : ''}`
+  const story = selected.previousDate
+    ? metric === 'load' && delta != null
+      ? delta === 0 ? 'Repetiste la carga principal de la sesión anterior.' : selected.loadType === 'assistance' ? delta < 0 ? `Hoy necesitaste ${Math.abs(delta)} kg menos de ayuda.` : `Hoy usaste ${delta} kg más de ayuda.` : delta > 0 ? `Hoy moviste ${delta} kg más que la última vez.` : `Hoy registraste ${Math.abs(delta)} kg menos que la última vez.`
+      : metric === 'reps' && delta != null
+        ? delta === 0 ? 'Igualaste las repeticiones máximas de la última sesión.' : delta > 0 ? `Sumaste ${delta} repeticiones en tu mejor serie.` : `Tu mejor serie tuvo ${Math.abs(delta)} repeticiones menos que la anterior.`
+        : 'Aún no hay registros suficientes para comparar esta métrica.'
+    : 'Primera referencia de este ejercicio: ya tienes un punto de comparación para la próxima vez.'
   return <div className="workout-review">
-    <div className="workout-review-top"><strong>Rendimiento de hoy</strong><span>{rows.reduce((n, row) => n + row.sets.filter((set) => !set.is_warmup).length, 0)} series efectivas</span></div>
-    {records.length > 0 ? <div className="workout-review-records">{records.map((row) => <p key={row.exerciseId}><span aria-hidden="true">↗</span> <strong>{row.name}:</strong> {row.highlight}</p>)}</div> : <p className="muted workout-review-encouragement">Buen trabajo registrando el entreno. Cada sesión suma datos para ajustar tu progresión.</p>}
-    <details className="workout-review-details"><summary>Ver series por ejercicio</summary>
+    <div className="workout-story-heading"><span className="eyebrow">LA SESIÓN EN DATOS</span><h4>Tu progreso, ejercicio a ejercicio</h4><p>Compara hoy con tu sesión anterior y observa qué cambió.</p></div>
+    <div className="workout-review-kpis">
+      <div><strong>{rows.length}</strong><span>ejercicios</span></div>
+      <div><strong>{effectiveSets}</strong><span>series efectivas</span></div>
+      {cardioMin > 0 && <div><strong>{Math.round(cardioMin)}′</strong><span>cardio</span></div>}
+    </div>
+    {records.length > 0 && <div className="workout-record-strip"><span aria-hidden="true">✦</span><div><strong>{records.length === 1 ? 'Nueva marca personal' : `${records.length} marcas personales`}</strong><small>{records.map((row) => row.name).join(' · ')}</small></div></div>}
+    <div className="workout-chart-panel">
+      <div className="workout-chart-title"><span className="eyebrow">COMPARACIÓN</span><select aria-label="Ejercicio para comparar" value={selected.exerciseId} onChange={(e) => setSelectedId(e.target.value)}>{rows.map((row) => <option key={row.exerciseId} value={row.exerciseId}>{row.name}</option>)}</select></div>
+      <div className="subtabs workout-chart-metrics" aria-label="Métrica del resumen">
+        <button className={metric === 'load' ? 'active' : ''} onClick={() => setMetric('load')}>Carga principal</button>
+        <button className={metric === 'reps' ? 'active' : ''} onClick={() => setMetric('reps')}>Repeticiones</button>
+      </div>
+      {chartValues.some((n) => n != null) ? <div className="workout-compare-chart" role="img" aria-label={`${selected.name}: comparación de ${metric === 'load' ? 'carga' : 'repeticiones'} entre sesiones`}>
+        {chartValues.map((value, i) => <div className={`workout-compare-column ${i === 1 ? 'current' : 'previous'}`} key={i}>
+          <strong className="workout-compare-value">{value == null ? '—' : `${value}${metric === 'load' ? '' : ' reps'}`}</strong>
+          <div className="workout-compare-track"><i style={{ height: value == null ? '0%' : `${Math.max(8, value / chartMax * 100)}%` }} /></div>
+          <span>{i === 0 ? 'Última vez' : 'Hoy'}</span>
+          <small>{i === 0 ? previousDateLabel : currentDateLabel}{metric === 'load' && value != null ? ` · ${loadUnit}` : ''}{metric === 'reps' && value != null ? ` · ${repLoadLabel(i === 0 ? selected.previousBestReps?.load ?? null : selected.currentBestReps?.load ?? null)}` : ''}</small>
+        </div>)}
+      </div> : <div className="workout-chart-empty">Todavía no hay datos de {metric === 'load' ? 'carga' : 'repeticiones'} para comparar. Las series de hoy quedan guardadas.</div>}
+      <div className="workout-story-insight"><span aria-hidden="true">↗</span><p>{story}</p></div>
+      {selected.averageRir != null && <p className="workout-rir-context">Esfuerzo medio de hoy: <strong>RIR {selected.averageRir}</strong> <span>· dato de contexto, no una nota de rendimiento</span></p>}
+    </div>
+    <details className="workout-review-details"><summary>Ver todas las series de hoy</summary>
       {rows.map((row) => <div className="workout-review-exercise" key={row.exerciseId}><strong>{row.name}</strong><span>{fmtSets(row.sets.filter((set) => !set.is_warmup).map((set, i) => ({ ...set, set_number: i + 1 }))) || 'Sin series efectivas registradas'}</span>{row.highlight && <small>{row.highlight}</small>}</div>)}
     </details>
   </div>

@@ -1,5 +1,9 @@
 # Historial de versiones
 
+## 3.31 · 2026-11-26
+- Rediseña el resumen al terminar el entreno con métricas visuales, marcas personales y una gráfica interactiva que compara carga o repeticiones de cada ejercicio frente a su última sesión.
+- Explica el cambio con datos registrados y deja las series completas en un desplegable.
+
 ## 3.30 · 2026-11-26
 - Rediseña el reloj de descanso como una tarjeta compacta centrada, con jerarquía clara para el tiempo y controles adaptados a pantallas estrechas.
 - Corrige la cascada de estilos para mantener el reloj separado de la navegación inferior.
