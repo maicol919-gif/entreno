@@ -1,5 +1,9 @@
 # Historial de versiones
 
+## 3.33 · 2026-11-26
+- Simplifica el resumen móvil con un gráfico circular interactivo que distribuye las series por ejercicio y muestra el total en el centro.
+- Reorganiza el espacio lateral y reduce la información inicial; comparación y detalles quedan compactos o plegados.
+
 ## 3.32 · 2026-11-26
 - Rediseña el resumen de fin de sesión para móvil: portada narrativa, recorrido táctil por ejercicios y comparación visual con controles grandes.
 - Prioriza la lectura rápida; deja las series completas en detalles desplegables.

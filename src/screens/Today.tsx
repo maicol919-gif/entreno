@@ -780,13 +780,12 @@ function WorkoutReview({ sessionId, sessionDate, exercises, exerciseOrder, cardi
   const selected = rows.find((row) => row.exerciseId === selectedId) ?? rows[0]
   const effectiveSets = rows.reduce((n, row) => n + row.sets.filter((set) => !set.is_warmup).length, 0)
   const records = rows.filter((row) => row.highlight?.startsWith('Nueva mejor marca') || row.highlight?.startsWith('Más repeticiones'))
-  const loadUnit = selected.loadType === 'assistance' ? 'kg de ayuda' : selected.loadType === 'per_side' ? 'kg por lado' : selected.loadType === 'per_hand' ? 'kg por mano' : selected.loadType === 'plates_per_side_plus_bar' ? 'kg de discos/lado' : 'kg'
   const chartValues = metric === 'load' ? [selected.previousTop, selected.currentTop] : [selected.previousBestReps?.reps ?? null, selected.currentBestReps?.reps ?? null]
-  const chartMax = Math.max(1, ...chartValues.filter((n): n is number => n != null))
   const currentDateLabel = fmtDate(sessionDate)
   const previousDateLabel = selected.previousDate ? fmtDate(selected.previousDate) : 'Primera referencia'
   const delta = chartValues[0] != null && chartValues[1] != null ? Math.round((chartValues[1] - chartValues[0]) * 10) / 10 : null
-  const repLoadLabel = (load: number | null) => load == null ? 'peso corporal' : `${load} kg${selected.loadType === 'assistance' ? ' de ayuda' : selected.loadType === 'per_side' ? ' por lado' : selected.loadType === 'per_hand' ? ' por mano' : ''}`
+  const positiveChange = delta != null && (metric === 'load' && selected.loadType === 'assistance' ? delta < 0 : delta > 0)
+  const loadLabel = selected.loadType === 'per_side' ? 'kg/lado' : selected.loadType === 'per_hand' ? 'kg/mano' : selected.loadType === 'assistance' ? 'kg ayuda' : selected.loadType === 'plates_per_side_plus_bar' ? 'kg/lado' : 'kg'
   const story = selected.previousDate
     ? metric === 'load' && delta != null
       ? delta === 0 ? 'Repetiste la carga principal de la sesión anterior.' : selected.loadType === 'assistance' ? delta < 0 ? `Hoy necesitaste ${Math.abs(delta)} kg menos de ayuda.` : `Hoy usaste ${delta} kg más de ayuda.` : delta > 0 ? `Hoy moviste ${delta} kg más que la última vez.` : `Hoy registraste ${Math.abs(delta)} kg menos que la última vez.`
@@ -794,32 +793,37 @@ function WorkoutReview({ sessionId, sessionDate, exercises, exerciseOrder, cardi
         ? delta === 0 ? 'Igualaste las repeticiones máximas de la última sesión.' : delta > 0 ? `Sumaste ${delta} repeticiones en tu mejor serie.` : `Tu mejor serie tuvo ${Math.abs(delta)} repeticiones menos que la anterior.`
         : 'Aún no hay registros suficientes para comparar esta métrica.'
     : 'Primera referencia de este ejercicio: ya tienes un punto de comparación para la próxima vez.'
+  const ringColors = ['#c7ff72', '#70dfb0', '#65b8ff', '#ffb86a', '#c19aff', '#ff7f91', '#70dedb', '#f2e66f']
+  const ringRows = rows.filter((row) => row.sets.some((set) => !set.is_warmup))
+  const ringTotal = ringRows.reduce((sum, row) => sum + row.sets.filter((set) => !set.is_warmup).length, 0)
+  const ringLength = 2 * Math.PI * 46
+  let ringOffset = 0
+  const ringSegments = ringRows.map((row, index) => {
+    const count = row.sets.filter((set) => !set.is_warmup).length
+    const segment = ringTotal ? ringLength * count / ringTotal : 0
+    const visible = Math.max(0, segment - 2.5)
+    const offset = ringOffset
+    ringOffset += segment
+    return { row, count, color: ringColors[index % ringColors.length], dash: `${visible} ${ringLength - visible}`, offset: -offset }
+  })
   return <div className="workout-review">
-    <div className="workout-story-heading workout-story-hero"><span className="eyebrow">SESIÓN GUARDADA · {currentDateLabel}</span><h4>{records.length ? 'Hoy dejaste una marca.' : 'Un entrenamiento más, sumado.'}</h4><p>{records.length ? `${records.length === 1 ? 'Tu mejor resultado llegó en ' : 'Tus mejores resultados llegaron en '}${records[0].name}.` : `${effectiveSets} series efectivas en ${rows.length} ejercicios: el trabajo de hoy ya cuenta para tu progreso.`}</p><div className="workout-story-route" aria-label="Recorrido de ejercicios">{rows.map((row, index) => <button key={row.exerciseId} className={row.exerciseId === selected.exerciseId ? 'active' : ''} onClick={() => setSelectedId(row.exerciseId)} aria-label={`Ver ${row.name}`}><span>{String(index + 1).padStart(2, '0')}</span><i style={{ height: `${Math.max(12, Math.min(100, row.sets.filter((set) => !set.is_warmup).length * 22))}%` }} /><small>{row.name}</small></button>)}</div></div>
-    <div className="workout-review-kpis">
-      <div><strong>{rows.length}</strong><span>ejercicios</span></div>
-      <div><strong>{effectiveSets}</strong><span>series efectivas</span></div>
-      {cardioMin > 0 && <div><strong>{Math.round(cardioMin)}′</strong><span>cardio</span></div>}
-    </div>
-    {records.length > 0 && <div className="workout-record-strip"><span aria-hidden="true">✦</span><div><strong>{records.length === 1 ? 'Nueva marca personal' : `${records.length} marcas personales`}</strong><small>{records.map((row) => row.name).join(' · ')}</small></div></div>}
-    <div className="workout-chart-panel">
-      <div className="workout-chart-title"><span className="eyebrow">TU HISTORIA · {rows.indexOf(selected) + 1} DE {rows.length}</span><div className="workout-exercise-rail" aria-label="Elige un ejercicio">{rows.map((row) => <button key={row.exerciseId} className={row.exerciseId === selected.exerciseId ? 'active' : ''} onClick={() => setSelectedId(row.exerciseId)}>{row.name}</button>)}</div></div>
-      <div className="subtabs workout-chart-metrics" aria-label="Métrica del resumen">
-        <button className={metric === 'load' ? 'active' : ''} onClick={() => setMetric('load')}>Carga principal</button>
-        <button className={metric === 'reps' ? 'active' : ''} onClick={() => setMetric('reps')}>Repeticiones</button>
+    <section className="workout-simple-summary">
+      <div className="workout-simple-head"><span className="eyebrow">ENTRENO COMPLETADO · {currentDateLabel}</span><h4>{records.length ? 'Hoy superaste tu referencia' : 'Trabajo hecho.'}</h4></div>
+      <div className="workout-ring-layout">
+        <div className="workout-ring" role="img" aria-label={`${effectiveSets} series efectivas distribuidas en ${ringRows.length} ejercicios`}>
+          <svg viewBox="0 0 120 120" aria-hidden="true"><circle className="workout-ring-track" cx="60" cy="60" r="46"/><g transform="rotate(-90 60 60)">{ringSegments.map((segment) => <circle key={segment.row.exerciseId} className={`workout-ring-segment ${segment.row.exerciseId === selected.exerciseId ? 'active' : ''}`} cx="60" cy="60" r="46" fill="none" stroke={segment.color} strokeWidth={segment.row.exerciseId === selected.exerciseId ? 13 : 10} strokeDasharray={segment.dash} strokeDashoffset={segment.offset} strokeLinecap="round" onClick={() => setSelectedId(segment.row.exerciseId)} />)}</g></svg>
+          <div className="workout-ring-center"><strong>{effectiveSets}</strong><span>series</span></div>
+        </div>
+        <div className="workout-ring-legend">{ringSegments.slice(0, 3).map((segment) => <button key={segment.row.exerciseId} className={segment.row.exerciseId === selected.exerciseId ? 'active' : ''} onClick={() => setSelectedId(segment.row.exerciseId)}><i style={{ background: segment.color }}/><span>{segment.row.name}</span><b>{segment.count}</b></button>)}{ringSegments.length > 3 && <details className="workout-ring-more"><summary>+{ringSegments.length - 3} ejercicios</summary>{ringSegments.slice(3).map((segment) => <button key={segment.row.exerciseId} className={segment.row.exerciseId === selected.exerciseId ? 'active' : ''} onClick={() => setSelectedId(segment.row.exerciseId)}><i style={{ background: segment.color }}/><span>{segment.row.name}</span><b>{segment.count}</b></button>)}</details>}</div>
       </div>
-      {chartValues.some((n) => n != null) ? <div className="workout-compare-chart workout-mobile-chart" role="img" aria-label={`${selected.name}: comparación de ${metric === 'load' ? 'carga' : 'repeticiones'} entre sesiones`}>
-        {chartValues.map((value, i) => <div className={`workout-compare-column ${i === 1 ? 'current' : 'previous'}`} key={i}>
-          <strong className="workout-compare-value">{value == null ? '—' : `${value}${metric === 'load' ? '' : ' reps'}`}</strong>
-          <div className="workout-compare-track"><i style={{ height: value == null ? '0%' : `${Math.max(8, value / chartMax * 100)}%` }} /></div>
-          <span>{i === 0 ? 'Última vez' : 'Hoy'}</span>
-          <small>{i === 0 ? previousDateLabel : currentDateLabel}{metric === 'load' && value != null ? ` · ${loadUnit}` : ''}{metric === 'reps' && value != null ? ` · ${repLoadLabel(i === 0 ? selected.previousBestReps?.load ?? null : selected.currentBestReps?.load ?? null)}` : ''}</small>
-        </div>)}
-      </div> : <div className="workout-chart-empty">Todavía no hay datos de {metric === 'load' ? 'carga' : 'repeticiones'} para comparar. Las series de hoy quedan guardadas.</div>}
-      <div className="workout-story-insight"><span aria-hidden="true">↗</span><p>{story}</p></div>
-      {selected.averageRir != null && <p className="workout-rir-context">Esfuerzo medio de hoy: <strong>RIR {selected.averageRir}</strong> <span>· dato de contexto, no una nota de rendimiento</span></p>}
-    </div>
-    <details className="workout-review-details"><summary>Ver todas las series de hoy</summary>
+      <div className="workout-simple-foot"><span>{rows.length} ejercicios</span>{cardioMin > 0 && <span>{Math.round(cardioMin)} min cardio</span>}{records.length > 0 && <span className="workout-record-badge">✦ {records.length} marca{records.length === 1 ? '' : 's'}</span>}</div>
+    </section>
+    <section className="workout-compare-simple">
+      <div className="workout-compare-head"><div><span className="eyebrow">TU PROGRESO</span><h5>{selected.name}</h5></div><div className="workout-mini-switch" aria-label="Métrica"><button className={metric === 'load' ? 'active' : ''} onClick={() => setMetric('load')}>{loadLabel}</button><button className={metric === 'reps' ? 'active' : ''} onClick={() => setMetric('reps')}>reps</button></div></div>
+      <div className="workout-simple-values">{chartValues.map((value, i) => <div key={i} className={i === 1 ? 'today' : ''}><span>{i === 0 ? 'ANTES' : 'HOY'}</span><strong>{value == null ? '—' : value}</strong><small>{i === 0 ? previousDateLabel : currentDateLabel}</small></div>)}<b className="workout-simple-arrow" aria-hidden="true">{delta == null ? '·' : delta === 0 ? '↔' : positiveChange ? '↗' : '↘'}</b></div>
+      <p className="workout-simple-story">{story}</p>
+    </section>
+    <details className="workout-review-details"><summary>Ver detalle de series</summary>
       {rows.map((row) => <div className="workout-review-exercise" key={row.exerciseId}><strong>{row.name}</strong><span>{fmtSets(row.sets.filter((set) => !set.is_warmup).map((set, i) => ({ ...set, set_number: i + 1 }))) || 'Sin series efectivas registradas'}</span>{row.highlight && <small>{row.highlight}</small>}</div>)}
     </details>
   </div>
